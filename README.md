@@ -156,9 +156,11 @@ examples/hooks/ Claude Code → 快照示例
 
 | 文档 | 内容 |
 |------|------|
-| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | 各 Agent 信号保真度与已知缺口 |
+| [docs/signals.md](docs/signals.md) | 各 Agent 信号来源 / 忙闲 / 缺口（对照 poller 代码） |
+| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | 保真度总表与已知缺口 |
 | [docs/macos.md](docs/macos.md) | macOS 安装、poller、Jobs、hooks |
 | [docs/status-ingest.md](docs/status-ingest.md) | 协议 v1 + 厂商调研 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 开发与加 adapter/bridge |
 
 ## License
 

@@ -1,6 +1,6 @@
 # Agent Stage · Live status limitations
 
-Honest fidelity for the default roster. Adapters are typically wired to
+Honest fidelity for the default roster. Per-signal detail (sources, busy, waits): **[signals.md](./signals.md)**. Adapters are typically wired to
 `FileStatusAdapter` + `public/status/<id>.json` (and `~/.agent-stage/status/` via
 the Mac poller). The UI settings path is **UI only** (status art, seats, colors,
 background). Do not expect every product to expose a full task-stream API.

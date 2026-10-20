@@ -65,7 +65,7 @@ pnpm bridge:live
 ```
 
 Then hard-refresh the Vite page. Seat cards leave stub idle as real signals
-arrive. Fidelity and gaps: [LIMITATIONS.md](./LIMITATIONS.md).
+arrive. Fidelity and gaps: [LIMITATIONS.md](./LIMITATIONS.md). Signal sources: [signals.md](./signals.md).
 
 ### How the poller works (high level)
 
