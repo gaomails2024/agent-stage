@@ -251,6 +251,22 @@ Follow **user priority** (WorkBuddy → … → Codex), not ease.
 
 ---
 
+## Known live gaps (Mac poller)
+
+These are product/signal limits observed in `scripts/bridges/macos-live-status-poll.mjs`,
+not protocol bugs. Details: [LIMITATIONS.md](./LIMITATIONS.md).
+
+| Product | Gap |
+|---------|-----|
+| Hermes | In-memory gateway approvals / live “waiting” not on control socket |
+| Claude Code | Permission / needs_input without hooks → invisible |
+| 豆包工作 | `needs_input` not emitted by current poller |
+| Codex | Interactive approval weaker than Claude hooks |
+
+Ship hooks / file drops when fine wait states matter.
+
+---
+
 ## 中文摘要
 
 - **用户优先级**：WorkBuddy → CodeBuddy → GLM → AutoClaw → DSH → Marvs → Hermes → Claude Code → Codex。

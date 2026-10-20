@@ -7,12 +7,12 @@
   "quality": "showcase",
   "startedAt": "2026-10-20T00:49:41.836Z",
   "specification": {
-    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
+    "path": "./.archify/architecture-agent-status-20261020-084736/candidate.json",
     "sha256": "d223ff6839c6ad2c5eb21ae66f4d42e3648bb062fb5465ed9603479e845cd729",
     "bytes": 9881
   },
   "artifact": {
-    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+    "path": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
     "sha256": "b6d029f40b305fbb8535a813e73bb54c6fa23cdff12b36d56171b1c3679707e9",
     "bytes": 849506
   },
@@ -23,11 +23,11 @@
       "durationMs": null,
       "command": [
         "/usr/bin/node",
-        "/home/box/tools/archify-repo/archify/bin/archify.mjs",
+        "<archify-install>/archify/bin/archify.mjs",
         "deliver",
         "architecture",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "./.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "--quality",
         "showcase",
         "--json"
@@ -39,8 +39,8 @@
         "receiptId": "ae3528df-8c2f-4bbb-b605-a7d6aefe85f5",
         "stage": "check",
         "type": "architecture",
-        "input": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
-        "output": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "input": "./.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "output": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "error": "Final artifact check failed; the previous artifact was preserved.",
         "diagnostics": [
           {
@@ -81,7 +81,7 @@
         "provenance": "failed",
         "checker": {
           "ok": false,
-          "file": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+          "file": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
           "artifact": {
             "sha256": "e786d467be0f60746acc6c3faa1b1cccb7d5d881a9e47aef5170fe0bd722d78a",
             "bytes": 849648
@@ -344,8 +344,8 @@
     }
   ],
   "evidence": {
-    "receipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-2/agent-status.finalize.json",
-    "summaryReceipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-2/agent-status.finalize-summary.json"
+    "receipt": "./.archify/architecture-agent-status-20261020-084736/review-2/agent-status.finalize.json",
+    "summaryReceipt": "./.archify/architecture-agent-status-20261020-084736/review-2/agent-status.finalize-summary.json"
   },
   "visualReview": "not-requested",
   "failedStage": "validate",

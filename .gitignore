@@ -15,6 +15,7 @@ pnpm-debug.log*
 !.vscode/extensions.json
 .idea
 .DS_Store
+._*
 
 # Tauri / Rust
 src-tauri/target

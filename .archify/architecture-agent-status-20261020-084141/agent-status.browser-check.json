@@ -8,7 +8,7 @@
   "provenance": "current",
   "deliveryReceiptId": "5bc83d26-a144-40f5-8563-c54355b7b647",
   "artifact": {
-    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084141/agent-status.html",
+    "path": "./.archify/architecture-agent-status-20261020-084141/agent-status.html",
     "sha256": "b8e651d586799d9cf5ad3df94d0265ef3651aa398e62b02b6425323844a1d41d",
     "bytes": 840775
   },

@@ -1315,7 +1315,8 @@ function grokDesktopAppAlive() {
   }
 }
 
-const GROK_CODER_ID = '6998917b-4975-4b02-9ce8-ea42f3764ab9';
+/** Optional: GROK_CODER_AGENT_ID; else match name "Coder". */
+const GROK_CODER_ID = process.env.GROK_CODER_AGENT_ID || '';
 const GROK_OFFICIAL_FORCE = 'grok-official-listagents-v2';
 
 /** Optional Path A: ops-provided gateway (env or ~/.agent-stage/grok-gateway.json). Never scrape sealed app secrets. */
@@ -1380,7 +1381,7 @@ function grokAgentBusyFlags(a) {
 function mapGrokListAgentsStatus(agents) {
   const list = Array.isArray(agents) ? agents : [];
   const coder =
-    list.find((a) => a?.id === GROK_CODER_ID) ||
+    (GROK_CODER_ID ? list.find((a) => a?.id === GROK_CODER_ID) : null) ||
     list.find((a) => a?.name === 'Coder') ||
     null;
   let anyAwaiting = false;
@@ -1433,7 +1434,7 @@ function pollGrokBotFromGateway() {
       forceVersion: GROK_OFFICIAL_FORCE,
       via: gw.via,
       coder: {
-        id: mapped.coder?.id ?? GROK_CODER_ID,
+        id: mapped.coder?.id ?? null,
         isRunningTurn: !!mapped.coder?.isRunningTurn,
         isRunning: !!mapped.coder?.isRunning,
         isComposingMessage: !!mapped.coder?.isComposingMessage,

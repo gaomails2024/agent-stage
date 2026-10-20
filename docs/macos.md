@@ -1,6 +1,6 @@
 # macOS runbook · Agent Stage
 
-Target: Apple Silicon (arm64) or Intel Mac. Asia/Shanghai timezone optional.
+Target: Apple Silicon (arm64) or Intel Mac.
 
 ## Prerequisites
 
@@ -23,35 +23,60 @@ Target: Apple Silicon (arm64) or Intel Mac. Asia/Shanghai timezone optional.
    ```
 5. **sqlite3** + **curl** (for the live Mac poller) — usually preinstalled.
 
-## Unpack & run
+## Clone & run
 
 ```bash
-cd ~/Projects   # or wherever you like
-tar -xzf agent-status-board-mac-*.tar.gz
-cd agent-status-board-*   # folder name includes timestamp
-
+git clone https://github.com/gaomails2024/agent-stage.git
+cd agent-stage
 pnpm install
 pnpm typecheck
 pnpm smoke
-pnpm exec vite --host 127.0.0.1 --port 5174   # if 5173 busy
-# or: pnpm dev
+pnpm dev
 # optional: pnpm tauri:dev
 ```
 
-First load after this pack imports the **12-agent** roster via
-`public/config.override.json` (`forceVersion`). Settings are UI-only:
-status images, seat side/order, colors, background.
+Or from a pack archive:
+
+```bash
+tar -xzf agent-stage-mac-*.tar.gz
+cd agent-stage-mac-*   # folder name includes timestamp
+pnpm install && pnpm smoke && pnpm dev
+```
+
+First load may import the roster from `public/config.override.json` when
+`forceVersion` bumps (see [LIMITATIONS.md](./LIMITATIONS.md)). Settings UI is for
+status images, seat side/order, colors, background — not for inventing vendor APIs.
+
+### Historical note (dev packs)
+
+Older internal drop archives were named `agent-status-board-mac-*`. Current
+`pnpm pack:mac` writes `agent-stage-mac-*.tar.gz` next to the repo (override with
+`PACK_OUT_DIR`). Nested paths like `/workspace/agent-status-board/` in old
+architecture receipts were sanitized for the public tree.
 
 ## Live status (recommended)
 
 In a second terminal:
 
 ```bash
-node scripts/bridges/macos-live-status-poll.mjs
+pnpm bridge:live
+# or: node scripts/bridges/macos-live-status-poll.mjs
+# one shot: pnpm bridge:live:once
 ```
 
-Then hard-refresh the Vite page. Seat cards should leave stub idle as real
-signals arrive. See [LIMITATIONS.md](./LIMITATIONS.md) for per-agent fidelity.
+Then hard-refresh the Vite page. Seat cards leave stub idle as real signals
+arrive. Fidelity and gaps: [LIMITATIONS.md](./LIMITATIONS.md).
+
+### How the poller works (high level)
+
+1. **Presence** — match a whitelist of real app/CLI main binaries in `ps` output.
+2. **Work signals** — per product: SQLite / session JSONL / logs / optional HTTP
+   (WorkBuddy DB, Hermes gateway state, Claude `agents --json`, Codex rollouts, …).
+3. **Write** — atomic JSON snapshots to `~/.agent-stage/status/<id>.json` and mirror
+   into `<repo>/public/status/` for the browser File adapter.
+
+The poller is **macOS-oriented**. It will not magically read Windows/Linux app
+layouts. Without local agent apps installed, seats stay offline/idle stubs.
 
 ### WorkBuddy note
 
@@ -61,15 +86,25 @@ ignored so the seat does not stick on「等操作」while a session is working.
 
 ### Grok Bot
 
-Write `~/.agent-stage/status/grok-bot.json` (schema v1) while the bot is working;
-the poller mirrors it to `grok-bot-1`.
+Prefer Path A: set `GROK_BOT_GATEWAY_URL` + `GROK_BOT_GATEWAY_TOKEN`, or
+`~/.agent-stage/grok-gateway.json`. Optional `GROK_CODER_AGENT_ID` to pin an agent
+id; otherwise the poller looks for name `Coder`.
+
+Path B: write `~/.agent-stage/status/grok-bot.json` (schema v1); the poller mirrors
+it to `grok-bot-1` when fresh. See `scripts/bridges/grok-official-bridge-README.md`.
+
+### Claude / Doubao / Hermes gaps
+
+- **Claude Code:** fine `needs_input` needs hooks (`examples/hooks/claude-status-write.sh`).
+- **豆包工作:** running detection is relatively good; `needs_input` is weak/absent.
+- **Hermes:** busy via gateway/leases is solid; in-memory wait/approval is not on the socket.
 
 ## Jobs API (optional fine path)
 
 ```bash
-codebuddy --serve --port 8080
-# put password in Settings → 高级 → authToken, adapter CodeBuddy
-# or:
+# Example — only if your CodeBuddy/WorkBuddy install exposes Jobs serve:
+codebuddy --serve --port <port>
+# Settings → 高级 → authToken, or:
 CODEBUDDY_TOKEN=... node scripts/bridges/buddy-jobs-poll.mjs --vendor codebuddy --id codebuddy-1
 ```
 
@@ -77,7 +112,7 @@ CODEBUDDY_TOKEN=... node scripts/bridges/buddy-jobs-poll.mjs --vendor codebuddy 
 
 ```bash
 chmod +x examples/hooks/claude-status-write.sh
-# Point Claude Code hooks at the absolute path; for GLM:
+# Point Claude Code hooks at the absolute path; for GLM-style reuse:
 #   AGENT_STAGE_ID=glm-1 AGENT_STAGE_VENDOR=glm
 ```
 
@@ -98,6 +133,6 @@ pnpm install --config.minimumReleaseAge=0
 
 ## Notes
 
-- Default seat card width **112px**, portrait **2:3**; seat side **bottom / left / right** actually reflows the layout (no free drag).
-- App code has no Linux-only runtime deps.
-- Do not commit `node_modules/`, `src-tauri/target/`, or `dist/`.
+- Default seat card width **~112–130px**, portrait **2:3**; seat side **bottom / left / right** reflows layout (no free drag).
+- App UI code has no Linux-only runtime deps; live bridges do.
+- Do not commit `node_modules/`, `src-tauri/target/`, `dist/`, or `.runtime/`.

@@ -7,12 +7,12 @@
   "quality": "showcase",
   "startedAt": "2026-10-20T00:49:46.037Z",
   "specification": {
-    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
+    "path": "./.archify/architecture-agent-status-20261020-084736/candidate.json",
     "sha256": "0241f6b6c5693ba0e816e93032e3a3603f661d5f09c7bbc3bb69dcc36d158978",
     "bytes": 9016
   },
   "artifact": {
-    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+    "path": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
     "sha256": "b6d029f40b305fbb8535a813e73bb54c6fa23cdff12b36d56171b1c3679707e9",
     "bytes": 849506
   },
@@ -24,11 +24,11 @@
       "execution": "embedded-in-deliver",
       "command": [
         "/usr/bin/node",
-        "/home/box/tools/archify-repo/archify/bin/archify.mjs",
+        "<archify-install>/archify/bin/archify.mjs",
         "deliver",
         "architecture",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "./.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "--quality",
         "showcase",
         "--json"
@@ -57,11 +57,11 @@
       "durationMs": 631,
       "command": [
         "/usr/bin/node",
-        "/home/box/tools/archify-repo/archify/bin/archify.mjs",
+        "<archify-install>/archify/bin/archify.mjs",
         "deliver",
         "architecture",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "./.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "--quality",
         "showcase",
         "--json"
@@ -72,8 +72,8 @@
         "ok": true,
         "command": "deliver",
         "type": "architecture",
-        "input": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
-        "output": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "input": "./.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "output": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "specification": {
           "sha256": "0241f6b6c5693ba0e816e93032e3a3603f661d5f09c7bbc3bb69dcc36d158978",
           "bytes": 9016
@@ -109,14 +109,14 @@
       "durationMs": 352,
       "command": [
         "/usr/bin/node",
-        "/home/box/tools/archify-repo/archify/bin/archify.mjs",
+        "<archify-install>/archify/bin/archify.mjs",
         "check",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "--require-provenance"
       ],
       "receipt": {
         "ok": true,
-        "file": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "file": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "artifact": {
           "sha256": "b6d029f40b305fbb8535a813e73bb54c6fa23cdff12b36d56171b1c3679707e9",
           "bytes": 849506
@@ -292,13 +292,13 @@
       "durationMs": 3466,
       "command": [
         "/usr/bin/node",
-        "/home/box/tools/archify-repo/archify/bin/archify.mjs",
+        "<archify-install>/archify/bin/archify.mjs",
         "browser-check",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
         "--json",
         "--require-provenance",
         "--out-dir",
-        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-3"
+        "./.archify/architecture-agent-status-20261020-084736/review-3"
       ],
       "execution": "in-process",
       "receipt": {
@@ -311,7 +311,7 @@
         "provenance": "current",
         "deliveryReceiptId": "55855423-beca-45ec-b507-d546fa64c1f9",
         "artifact": {
-          "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+          "path": "./.archify/architecture-agent-status-20261020-084736/agent-status.html",
           "sha256": "b6d029f40b305fbb8535a813e73bb54c6fa23cdff12b36d56171b1c3679707e9",
           "bytes": 849506
         },
@@ -1018,7 +1018,7 @@
           "contactSheet": null
         },
         "sidecars": {
-          "directory": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-3",
+          "directory": "./.archify/architecture-agent-status-20261020-084736/review-3",
           "receipt": "agent-status.browser-check.json",
           "files": []
         }
@@ -1031,9 +1031,9 @@
   },
   "diagnostics": [],
   "evidence": {
-    "receipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-3/agent-status.finalize.json",
-    "summaryReceipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-3/agent-status.finalize-summary.json",
-    "browserCheckReceipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-3/agent-status.browser-check.json"
+    "receipt": "./.archify/architecture-agent-status-20261020-084736/review-3/agent-status.finalize.json",
+    "summaryReceipt": "./.archify/architecture-agent-status-20261020-084736/review-3/agent-status.finalize-summary.json",
+    "browserCheckReceipt": "./.archify/architecture-agent-status-20261020-084736/review-3/agent-status.browser-check.json"
   },
   "visualReview": "not-requested",
   "finishedAt": "2026-10-20T00:49:50.592Z",

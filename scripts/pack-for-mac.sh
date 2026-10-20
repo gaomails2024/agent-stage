@@ -3,8 +3,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-NAME="agent-status-board-mac-${STAMP}"
-OUT_DIR="${PACK_OUT_DIR:-/workspace}"
+NAME="agent-stage-mac-${STAMP}"
+OUT_DIR="${PACK_OUT_DIR:-$ROOT}"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/agent-stage-pack.XXXXXX")"
 DEST="$STAGE/$NAME"
 

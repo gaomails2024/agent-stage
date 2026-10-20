@@ -4,8 +4,8 @@
   "status": "current",
   "command": "deliver",
   "type": "architecture",
-  "input": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084141/candidate.json",
-  "output": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084141/agent-status.html",
+  "input": "./.archify/architecture-agent-status-20261020-084141/candidate.json",
+  "output": "./.archify/architecture-agent-status-20261020-084141/agent-status.html",
   "specification": {
     "sha256": "dc3445b203f3b16ff9fdac9be06c16abeed1f9df734a37caddaabe4ca902c7b0",
     "bytes": 7456

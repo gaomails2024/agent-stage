@@ -1,24 +1,33 @@
 #!/usr/bin/env node
 /**
- * Grok Bot official status exporter (box host-gateway).
+ * Grok Bot official status exporter (host gateway).
  * forceVersion: grok-official-listagents-v2
  *
- * Reads /home/box/agent-data/gateway.json (port+token), calls:
+ * Reads gateway JSON from GROK_GATEWAY_JSON (default: ~/.agent-stage/grok-gateway-host.json)
+ * expecting { port, token, scheme? }, then calls:
  *   GET  /health
  *   POST /api/listAgents
  * Maps busy using desktop UI semantics (not /health.isBusy alone).
- * Prints drop JSON to stdout; optionally writes box runtime file.
+ * Prints drop JSON to stdout; optionally writes a runtime file.
  * NEVER includes gateway token in output.
  */
 import { readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-const CODER_ID = '6998917b-4975-4b02-9ce8-ea42f3764ab9';
-const GATEWAY_PATH = process.env.GROK_GATEWAY_JSON || '/home/box/agent-data/gateway.json';
+import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT = join(__dirname, '../..');
+/** Optional: GROK_CODER_AGENT_ID to prefer a specific agent; else match name "Coder". */
+const CODER_ID = process.env.GROK_CODER_AGENT_ID || '';
+const GATEWAY_PATH =
+  process.env.GROK_GATEWAY_JSON ||
+  join(homedir(), '.agent-stage', 'grok-gateway-host.json');
 const OUT_RUNTIME =
   process.env.GROK_OFFICIAL_OUT ||
-  '/workspace/agent-status-board/.runtime/grok-bot-official.json';
-const OUT_TMP = '/tmp/grok-bot-official.json';
+  join(PROJECT, '.runtime', 'grok-bot-official.json');
+const OUT_TMP = join(PROJECT, '.runtime', 'grok-bot-official.tmp.json');
 const FORCE_VERSION = 'grok-official-listagents-v2';
 
 function loadGateway() {
@@ -69,7 +78,7 @@ function agentBusyFlags(a) {
 
 function pickCoder(agents) {
   return (
-    agents.find((a) => a?.id === CODER_ID) ||
+    (CODER_ID ? agents.find((a) => a?.id === CODER_ID) : null) ||
     agents.find((a) => a?.name === 'Coder') ||
     null
   );
@@ -128,7 +137,7 @@ function buildDrop(mapped) {
       signal: 'host-gateway',
       forceVersion: FORCE_VERSION,
       coder: {
-        id: coder?.id ?? CODER_ID,
+        id: coder?.id ?? null,
         name: coder?.name ?? 'Coder',
         isRunningTurn: !!coder?.isRunningTurn,
         isRunning: !!coder?.isRunning,

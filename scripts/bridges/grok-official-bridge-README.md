@@ -9,5 +9,8 @@ Mac poller calls listAgents if `GROK_BOT_GATEWAY_URL` + `GROK_BOT_GATEWAY_TOKEN`
 Grok Bot desktop keeps gateway stamped in memory / sealed files — **not** readable as plaintext on disk today (`desktop-status.json` has no busy/gateway fields; `sand-client-persistence` strips `isRunningTurn`).
 
 ## Path B (interim)
-Box exporter: `node scripts/bridges/grok-official-status-export.mjs`  
-Writes `.runtime/grok-bot-official.json`. Push that JSON to Mac `~/.agent-stage/status/grok-bot.json` with `meta.source=sand-listAgents` (≤90s TTL). Continuous push needs a Grok Bot routine (~30s) until Path A works.
+Host exporter (optional): `node scripts/bridges/grok-official-status-export.mjs`  
+Reads `GROK_GATEWAY_JSON` or `~/.agent-stage/grok-gateway-host.json` (`{ port, token, scheme? }`).  
+Writes `<repo>/.runtime/grok-bot-official.json` (gitignored). Push that JSON to Mac
+`~/.agent-stage/status/grok-bot.json` with `meta.source=sand-listAgents` (short TTL).  
+Optional: `GROK_CODER_AGENT_ID` to prefer a specific agent id; else name `Coder`.
