@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "agentId": "workbuddy-1",
+  "status": "idle",
+  "summary": "WorkBuddy: waiting for live poller / heartbeat",
+  "observedAt": "2026-10-20T03:00:00.000Z",
+  "vendor": "workbuddy",
+  "meta": {
+    "source": "stub"
+  }
+}

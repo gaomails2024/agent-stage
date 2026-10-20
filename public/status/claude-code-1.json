@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "agentId": "claude-code-1",
+  "status": "idle",
+  "summary": "Claude Code: waiting for live poller / heartbeat",
+  "observedAt": "2026-10-20T03:00:00.000Z",
+  "vendor": "claude-code",
+  "meta": {
+    "source": "stub"
+  }
+}

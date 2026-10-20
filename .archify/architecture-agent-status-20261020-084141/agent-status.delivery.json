@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "5bc83d26-a144-40f5-8563-c54355b7b647",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084141/candidate.json",
+  "output": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084141/agent-status.html",
+  "specification": {
+    "sha256": "dc3445b203f3b16ff9fdac9be06c16abeed1f9df734a37caddaabe4ca902c7b0",
+    "bytes": 7456
+  },
+  "artifact": {
+    "sha256": "b8e651d586799d9cf5ad3df94d0265ef3651aa398e62b02b6425323844a1d41d",
+    "bytes": 840775
+  }
+}

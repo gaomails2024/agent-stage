@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-20T00:49:41.836Z",
+  "specification": {
+    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
+    "sha256": "d223ff6839c6ad2c5eb21ae66f4d42e3648bb062fb5465ed9603479e845cd729",
+    "bytes": 9881
+  },
+  "artifact": {
+    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+    "sha256": "b6d029f40b305fbb8535a813e73bb54c6fa23cdff12b36d56171b1c3679707e9",
+    "bytes": 849506
+  },
+  "stages": {
+    "validate": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": null,
+      "command": [
+        "/usr/bin/node",
+        "/home/box/tools/archify-repo/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "--quality",
+        "showcase",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "deliver",
+        "receiptId": "ae3528df-8c2f-4bbb-b605-a7d6aefe85f5",
+        "stage": "check",
+        "type": "architecture",
+        "input": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
+        "output": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+        "error": "Final artifact check failed; the previous artifact was preserved.",
+        "diagnostics": [
+          {
+            "code": "composition/desktop-readability",
+            "severity": "error",
+            "message": "Final artifact failed composition/desktop-readability.",
+            "subject": {
+              "check": "composition"
+            },
+            "evidence": {
+              "owner": {
+                "kind": "edge",
+                "id": "watch-board",
+                "from": "operator",
+                "to": "desktop_shell"
+              },
+              "viewportWidth": 1440,
+              "viewportHeight": 900,
+              "availableDiagramWidth": 930,
+              "budgetBasis": "legacy-930",
+              "readerContract": "declared-wide-v1",
+              "requestedTargetPx": 7.5,
+              "requestedTargetMet": false,
+              "budgetLimit": "legacy",
+              "viewBoxWidth": 1310,
+              "scale": 0.7099236641221374,
+              "text": "注视看板",
+              "detail": "edge",
+              "sourceFontPx": 8,
+              "projectedFontPx": 5.679389312977099,
+              "minimumProjectedFontPx": 6
+            },
+            "supportedFixes": [
+              "Preserve the semantic text and any supplied coordinates, routes, sides, channels, and labels. Compactly reflow automatic spacing and empty corridors so the complete viewBox width is at most 1240px (current 1310px; 8px source text at 930px desktop budget). If supplied geometry fixes that width, use a renderer-supported semantic text-size setting or renderer-level fix instead. Position-only label controls cannot repair its projection."
+            ]
+          }
+        ],
+        "provenance": "failed",
+        "checker": {
+          "ok": false,
+          "file": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+          "artifact": {
+            "sha256": "e786d467be0f60746acc6c3faa1b1cccb7d5d881a9e47aef5170fe0bd722d78a",
+            "bytes": 849648
+          },
+          "checks": [
+            {
+              "name": "single_svg",
+              "ok": true,
+              "details": [
+                "found 1 <svg> block(s)"
+              ]
+            },
+            {
+              "name": "finite_svg",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "orthogonal_arrows",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "label_route_clearance",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "relationship_crossings",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "relationship_corridors",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "container_border_runs",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "route_rhythm",
+              "ok": true,
+              "details": []
+            },
+            {
+              "name": "legend_clearance",
+              "ok": true,
+              "details": []
+            }
+          ],
+          "composition": {
+            "schemaVersion": 1,
+            "profile": "showcase",
+            "status": "fail",
+            "summary": {
+              "errors": 1,
+              "warnings": 0
+            },
+            "metrics": {
+              "properCrossings": 0,
+              "resolvedCrossovers": 1,
+              "ambiguousCorridors": 0,
+              "arrowheadCollisions": 0,
+              "containerBorderRuns": 0,
+              "labelRouteClearanceIssues": 0,
+              "labelCanvasOverflowIssues": 0,
+              "minLabelRouteClearance": 13.2,
+              "desktopReadabilityIssues": 1,
+              "viewportHeightIssues": 0,
+              "minProjectedNodeTextPx": 5.679389312977099,
+              "maxBends": 4,
+              "routesOverSuggestedBends": 1,
+              "maxStretch": 2.08,
+              "routesOverSuggestedStretch": 2,
+              "minSegmentPx": 24,
+              "minInteriorSegmentPx": 73,
+              "shortSegmentCount": 0,
+              "shortEndpointSegmentCount": 0,
+              "shortInteriorSegmentCount": 0,
+              "microSegmentCount": 0
+            },
+            "suggestedLimits": {
+              "bendsPerRelationship": 2,
+              "stretch": 1.35,
+              "segmentPx": 16,
+              "microSegmentPx": 8
+            },
+            "routeReview": {
+              "crossings": [
+                {
+                  "left": {
+                    "id": "push-status",
+                    "from": "status_store",
+                    "to": "character_stage",
+                    "label": "推送统一状态",
+                    "collectionIndex": 9,
+                    "artifactIndex": 10
+                  },
+                  "right": {
+                    "id": "priority-flag",
+                    "from": "status_store",
+                    "to": "priority_gate",
+                    "label": "高优闸门",
+                    "collectionIndex": 10,
+                    "artifactIndex": 11
+                  },
+                  "point": [
+                    717,
+                    372
+                  ],
+                  "sharedNode": "status_store"
+                }
+              ],
+              "detours": [
+                {
+                  "relationship": {
+                    "id": "optional-discover",
+                    "from": "auto_discover",
+                    "to": "settings_ui",
+                    "label": "建议候选",
+                    "collectionIndex": 3,
+                    "artifactIndex": 4
+                  },
+                  "bends": 2,
+                  "stretch": 1.403
+                },
+                {
+                  "relationship": {
+                    "id": "priority-flag",
+                    "from": "status_store",
+                    "to": "priority_gate",
+                    "label": "高优闸门",
+                    "collectionIndex": 10,
+                    "artifactIndex": 11
+                  },
+                  "bends": 4,
+                  "stretch": 2.08
+                }
+              ]
+            },
+            "leadingSpace": {
+              "measured": true,
+              "emptyTopPx": 48,
+              "emptyTopRatio": 0.054,
+              "occupiedTop": 48,
+              "viewBoxTop": 0,
+              "canvasHeight": 884,
+              "typicalNodeHeight": 64,
+              "reviewSuggested": false
+            },
+            "desktopReadability": {
+              "budgetBasis": "legacy-930",
+              "readerContract": "declared-wide-v1",
+              "availableDiagramWidth": 930,
+              "actualBudgetPx": 930,
+              "limit": "legacy",
+              "requestedTargetPx": 7.5,
+              "requestedTargetMet": false,
+              "hardFloorPx": 6,
+              "hardFloorMet": false,
+              "minimumOwner": {
+                "kind": "edge",
+                "id": "watch-board",
+                "from": "operator",
+                "to": "desktop_shell"
+              },
+              "minimumSourceTextPx": 8,
+              "minimumProjectedTextPx": 5.679389312977099,
+              "semanticTextCount": 54
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "code": "composition/desktop-readability",
+                "owner": {
+                  "kind": "edge",
+                  "id": "watch-board",
+                  "from": "operator",
+                  "to": "desktop_shell"
+                },
+                "viewportWidth": 1440,
+                "viewportHeight": 900,
+                "availableDiagramWidth": 930,
+                "budgetBasis": "legacy-930",
+                "readerContract": "declared-wide-v1",
+                "requestedTargetPx": 7.5,
+                "requestedTargetMet": false,
+                "budgetLimit": "legacy",
+                "viewBoxWidth": 1310,
+                "scale": 0.7099236641221374,
+                "text": "注视看板",
+                "detail": "edge",
+                "sourceFontPx": 8,
+                "projectedFontPx": 5.679389312977099,
+                "minimumProjectedFontPx": 6
+              }
+            ]
+          }
+        },
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      },
+      "execution": "embedded-in-deliver"
+    },
+    "deliver": {
+      "status": "not-run",
+      "execution": "blocked-by-validate"
+    }
+  },
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  },
+  "diagnostics": [
+    {
+      "code": "composition/desktop-readability",
+      "severity": "error",
+      "message": "Final artifact failed composition/desktop-readability.",
+      "subject": {
+        "check": "composition"
+      },
+      "evidence": {
+        "owner": {
+          "kind": "edge",
+          "id": "watch-board",
+          "from": "operator",
+          "to": "desktop_shell"
+        },
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "availableDiagramWidth": 930,
+        "budgetBasis": "legacy-930",
+        "readerContract": "declared-wide-v1",
+        "requestedTargetPx": 7.5,
+        "requestedTargetMet": false,
+        "budgetLimit": "legacy",
+        "viewBoxWidth": 1310,
+        "scale": 0.7099236641221374,
+        "text": "注视看板",
+        "detail": "edge",
+        "sourceFontPx": 8,
+        "projectedFontPx": 5.679389312977099,
+        "minimumProjectedFontPx": 6
+      },
+      "supportedFixes": [
+        "Preserve the semantic text and any supplied coordinates, routes, sides, channels, and labels. Compactly reflow automatic spacing and empty corridors so the complete viewBox width is at most 1240px (current 1310px; 8px source text at 930px desktop budget). If supplied geometry fixes that width, use a renderer-supported semantic text-size setting or renderer-level fix instead. Position-only label controls cannot repair its projection."
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-2/agent-status.finalize.json",
+    "summaryReceipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/review-2/agent-status.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "validate",
+  "finishedAt": "2026-10-20T00:49:42.542Z",
+  "durationMs": 706,
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-20T00:42:38.069Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  }
+}

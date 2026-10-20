@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "agentId": "codex-1",
+  "status": "idle",
+  "summary": "Codex: waiting for live poller / heartbeat",
+  "observedAt": "2026-10-20T03:00:00.000Z",
+  "vendor": "codex",
+  "meta": {
+    "source": "stub"
+  }
+}

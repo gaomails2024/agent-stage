@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-load-app-config"
+description = "Allows loading Agent Stage config.json from the app data directory"
+commands.allow = ["load_app_config"]
+
+[[permission]]
+identifier = "allow-save-app-config"
+description = "Allows saving Agent Stage config.json to the app data directory"
+commands.allow = ["save_app_config"]

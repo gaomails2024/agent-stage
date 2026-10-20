@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "agentId": "file-demo",
+  "status": "needs_input",
+  "summary": "Demo: approve shell command?",
+  "observedAt": "2026-10-20T02:00:00.000Z",
+  "vendor": "demo",
+  "meta": { "note": "Edit public/status/demo.json and save to see Stage update" }
+}

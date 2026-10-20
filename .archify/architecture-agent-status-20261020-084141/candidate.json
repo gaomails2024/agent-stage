@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "多 Agent 状态看板架构",
+    "locale": "zh-CN",
+    "output": ".archify/architecture-agent-status-20261020-084141/agent-status.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "使用者",
+      "sublabel": "副屏观察",
+      "icon": "person",
+      "pos": [40, 280],
+      "size": [120, 60]
+    },
+    {
+      "id": "desktop_shell",
+      "type": "frontend",
+      "label": "桌面壳",
+      "sublabel": "Tauri 常驻窗",
+      "tag": "Electron 备选",
+      "icon": "frontend",
+      "pos": [250, 280],
+      "size": [140, 64]
+    },
+    {
+      "id": "character_stage",
+      "type": "frontend",
+      "label": "角色舞台",
+      "sublabel": "二次元形象",
+      "tag": "动作状态机",
+      "icon": "frontend",
+      "pos": [480, 280],
+      "size": [140, 64]
+    },
+    {
+      "id": "status_store",
+      "type": "messagebus",
+      "label": "统一状态仓库",
+      "sublabel": "事件总线",
+      "tag": "统一模型",
+      "icon": "messagebus",
+      "pos": [710, 280],
+      "size": [140, 64]
+    },
+    {
+      "id": "adapter_host",
+      "type": "backend",
+      "label": "适配器主机",
+      "sublabel": "可插拔插件",
+      "tag": "OSS 友好",
+      "icon": "backend",
+      "pos": [940, 280],
+      "size": [140, 64]
+    },
+    {
+      "id": "anim_mapper",
+      "type": "backend",
+      "label": "状态动作映射",
+      "sublabel": "idle·running·done",
+      "tag": "六态切换",
+      "icon": "active",
+      "pos": [480, 100],
+      "size": [140, 64]
+    },
+    {
+      "id": "audio_alerts",
+      "type": "frontend",
+      "label": "声音/语音提示",
+      "sublabel": "后期可选",
+      "tag": "非阻塞",
+      "icon": "waiting",
+      "pos": [250, 100],
+      "size": [140, 64]
+    },
+    {
+      "id": "priority_gate",
+      "type": "security",
+      "label": "授权/输入闸门",
+      "sublabel": "needs_auth·input",
+      "tag": "高优视觉",
+      "icon": "security",
+      "pos": [710, 100],
+      "size": [140, 64]
+    },
+    {
+      "id": "adapt_log",
+      "type": "backend",
+      "label": "日志/CLI 适配器",
+      "sublabel": "扫日志·盯进程",
+      "icon": "backend",
+      "pos": [700, 440],
+      "size": [150, 60]
+    },
+    {
+      "id": "adapt_api",
+      "type": "backend",
+      "label": "本地 API 适配器",
+      "sublabel": "厂商本地接口",
+      "icon": "backend",
+      "pos": [880, 440],
+      "size": [150, 60]
+    },
+    {
+      "id": "adapt_slot",
+      "type": "backend",
+      "label": "社区扩展槽",
+      "sublabel": "贡献新适配器",
+      "tag": "开源入口",
+      "icon": "backend",
+      "pos": [1060, 440],
+      "size": [150, 60]
+    },
+    {
+      "id": "agents_a",
+      "type": "external",
+      "label": "WorkBuddy 等",
+      "sublabel": "CodeBuddy·GLM",
+      "icon": "external",
+      "pos": [700, 580],
+      "size": [150, 60]
+    },
+    {
+      "id": "agents_b",
+      "type": "external",
+      "label": "Claude Code",
+      "sublabel": "Codex·Harness",
+      "icon": "external",
+      "pos": [880, 580],
+      "size": [150, 60]
+    },
+    {
+      "id": "agents_c",
+      "type": "external",
+      "label": "其他厂商 Agent",
+      "sublabel": "AutoClaw·Hermes…",
+      "icon": "external",
+      "pos": [1060, 580],
+      "size": [150, 60]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "本机应用（拟开源）",
+      "wraps": [
+        "desktop_shell",
+        "character_stage",
+        "status_store",
+        "adapter_host",
+        "anim_mapper",
+        "audio_alerts",
+        "priority_gate",
+        "adapt_log",
+        "adapt_api",
+        "adapt_slot"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "适配器插件层",
+      "wraps": ["adapt_log", "adapt_api", "adapt_slot"]
+    },
+    {
+      "kind": "region",
+      "label": "外部 Agent 运行时",
+      "wraps": ["agents_a", "agents_b", "agents_c"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "watch-board",
+      "from": "operator",
+      "to": "desktop_shell",
+      "label": "注视看板",
+      "variant": "emphasis"
+    },
+    {
+      "id": "render-window",
+      "from": "desktop_shell",
+      "to": "character_stage",
+      "label": "渲染窗口"
+    },
+    {
+      "id": "map-motion",
+      "from": "character_stage",
+      "to": "anim_mapper",
+      "label": "按状态切动作",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "optional-audio",
+      "from": "character_stage",
+      "to": "audio_alerts",
+      "label": "可选播报",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "push-status",
+      "from": "status_store",
+      "to": "character_stage",
+      "label": "推送统一状态",
+      "variant": "emphasis"
+    },
+    {
+      "id": "priority-flag",
+      "from": "status_store",
+      "to": "priority_gate",
+      "label": "高优闸门",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "priority-motion",
+      "from": "priority_gate",
+      "to": "character_stage",
+      "label": "强调授权/输入",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "id": "write-events",
+      "from": "adapter_host",
+      "to": "status_store",
+      "label": "写入状态事件"
+    },
+    {
+      "id": "log-adapt",
+      "from": "adapt_log",
+      "to": "adapter_host",
+      "label": "归一化",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "api-adapt",
+      "from": "adapt_api",
+      "to": "adapter_host",
+      "label": "归一化",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "slot-adapt",
+      "from": "adapt_slot",
+      "to": "adapter_host",
+      "label": "插件接入",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "src-log",
+      "from": "agents_a",
+      "to": "adapt_log",
+      "label": "日志/进程",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "src-api",
+      "from": "agents_b",
+      "to": "adapt_api",
+      "label": "本地 API",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "src-slot",
+      "from": "agents_c",
+      "to": "adapt_slot",
+      "label": "贡献映射",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "呈现层",
+      "items": [
+        "Tauri 常驻窗优先，Electron 作体积备选",
+        "角色舞台把统一状态映射为二次元动作",
+        "声音/语音提示后期可选，默认不挡主路径"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "高优状态",
+      "items": [
+        "needs_auth / needs_input 走授权闸门",
+        "高优状态驱动更醒目的角色动作",
+        "便于副屏一眼发现要人工介入的 Agent"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "开源适配",
+      "items": [
+        "适配器主机与插件槽分离，便于社区贡献",
+        "日志/CLI 与本地 API 两类常见接入方式",
+        "外部厂商 Agent 始终在应用边界之外"
+      ]
+    }
+  ]
+}

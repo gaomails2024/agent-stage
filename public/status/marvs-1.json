@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "agentId": "marvs-1",
+  "status": "idle",
+  "summary": "Marvis: waiting for live poller / heartbeat",
+  "observedAt": "2026-10-20T03:00:00.000Z",
+  "vendor": "marvs",
+  "meta": {
+    "source": "stub"
+  }
+}

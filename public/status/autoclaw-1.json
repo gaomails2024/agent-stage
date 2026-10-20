@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "agentId": "autoclaw-1",
+  "status": "idle",
+  "summary": "AutoClaw: waiting for live poller / heartbeat",
+  "observedAt": "2026-10-20T03:00:00.000Z",
+  "vendor": "autoclaw",
+  "meta": {
+    "source": "stub"
+  }
+}

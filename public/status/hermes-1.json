@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "agentId": "hermes-1",
+  "status": "idle",
+  "summary": "Hermes Agent: waiting for live poller / heartbeat",
+  "observedAt": "2026-10-20T03:00:00.000Z",
+  "vendor": "hermes",
+  "meta": {
+    "source": "stub"
+  }
+}

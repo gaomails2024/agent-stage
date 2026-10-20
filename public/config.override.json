@@ -1,0 +1,556 @@
+{
+  "displayProfileId": "ipad4-landscape",
+  "windowWidth": 2048,
+  "windowHeight": 1536,
+  "background": {
+    "mode": "color",
+    "color": "#0f1419"
+  },
+  "seatSide": "right",
+  "visibleSeats": 12,
+  "seatCardWidth": 130,
+  "seatStripHeight": 300,
+  "escalationTimeoutMs": 120000,
+  "agents": [
+    {
+      "id": "workbuddy-1",
+      "name": "WorkBuddy",
+      "adapterType": "file",
+      "enabled": true,
+      "seatIndex": 0,
+      "characterId": "workbuddy",
+      "adapterConfig": {
+        "statusUrl": "/status/workbuddy-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "workbuddy"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "codebuddy-1",
+      "name": "CodeBuddy",
+      "adapterType": "file",
+      "enabled": true,
+      "seatIndex": 1,
+      "characterId": "codebuddy",
+      "adapterConfig": {
+        "statusUrl": "/status/codebuddy-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "codebuddy"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "hermes-1",
+      "name": "Hermes Agent",
+      "adapterType": "hermes",
+      "enabled": true,
+      "seatIndex": 2,
+      "characterId": "hermes",
+      "adapterConfig": {
+        "statusUrl": "/status/hermes-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "hermes"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "dsh-1",
+      "name": "DeepSeek Harness",
+      "adapterType": "dsh",
+      "enabled": true,
+      "seatIndex": 3,
+      "characterId": "dsh",
+      "adapterConfig": {
+        "statusUrl": "/status/dsh-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "dsh"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "grok-bot-1",
+      "name": "Grok Bot",
+      "adapterType": "file",
+      "enabled": true,
+      "seatIndex": 4,
+      "characterId": "grok-bot",
+      "adapterConfig": {
+        "statusUrl": "/status/grok-bot-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "grok-bot"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "marvs-1",
+      "name": "Marvis",
+      "adapterType": "marvs",
+      "enabled": true,
+      "seatIndex": 5,
+      "characterId": "marvis",
+      "adapterConfig": {
+        "statusUrl": "/status/marvs-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "marvs"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "autoclaw-1",
+      "name": "AutoClaw",
+      "adapterType": "autoclaw",
+      "enabled": true,
+      "seatIndex": 6,
+      "characterId": "autoclaw",
+      "adapterConfig": {
+        "statusUrl": "/status/autoclaw-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "autoclaw"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "doubao-1",
+      "name": "豆包工作",
+      "adapterType": "file",
+      "enabled": true,
+      "seatIndex": 7,
+      "characterId": "doubao",
+      "adapterConfig": {
+        "statusUrl": "/status/doubao-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "doubao"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "claude-code-1",
+      "name": "Claude Code",
+      "adapterType": "claude-code",
+      "enabled": true,
+      "seatIndex": 8,
+      "characterId": "claude-code",
+      "adapterConfig": {
+        "statusUrl": "/status/claude-code-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "claude-code"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    },
+    {
+      "id": "codex-1",
+      "name": "Codex",
+      "adapterType": "codex",
+      "enabled": true,
+      "seatIndex": 9,
+      "characterId": "codex",
+      "adapterConfig": {
+        "statusUrl": "/status/codex-1.json",
+        "pollIntervalMs": 1500,
+        "vendor": "codex"
+      },
+      "createdAt": "2026-10-20T04:00:00.000Z"
+    }
+  ],
+  "characters": [
+    {
+      "id": "default",
+      "name": "Default Chan",
+      "portraitPath": "/characters/default/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/default/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/default/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/default/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/default/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/default/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/default/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/default/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/default/stage.png"
+    },
+    {
+      "id": "workbuddy",
+      "name": "WorkBuddy",
+      "portraitPath": "/characters/workbuddy/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/workbuddy/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/workbuddy/stage.png"
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy",
+      "portraitPath": "/characters/codebuddy/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/codebuddy/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/codebuddy/stage.png"
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "portraitPath": "/characters/hermes/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/hermes/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/hermes/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/hermes/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/hermes/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/hermes/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/hermes/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/hermes/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/hermes/stage.png"
+    },
+    {
+      "id": "dsh",
+      "name": "DeepSeek Harness",
+      "portraitPath": "/characters/dsh/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/dsh/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/dsh/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/dsh/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/dsh/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/dsh/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/dsh/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/dsh/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/dsh/stage.png"
+    },
+    {
+      "id": "grok-bot",
+      "name": "Grok Bot",
+      "portraitPath": "/characters/grok-bot/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/grok-bot/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/grok-bot/stage.png"
+    },
+    {
+      "id": "marvis",
+      "name": "Marvis",
+      "portraitPath": "/characters/marvis/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/marvis/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/marvis/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/marvis/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/marvis/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/marvis/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/marvis/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/marvis/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/marvis/stage.png"
+    },
+    {
+      "id": "autoclaw",
+      "name": "AutoClaw",
+      "portraitPath": "/characters/autoclaw/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/autoclaw/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/autoclaw/stage.png"
+    },
+    {
+      "id": "doubao",
+      "name": "豆包工作",
+      "portraitPath": "/characters/doubao/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/doubao/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/doubao/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/doubao/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/doubao/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/doubao/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/doubao/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/doubao/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/doubao/stage.png"
+    },
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "portraitPath": "/characters/claude-code/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/claude-code/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/claude-code/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/claude-code/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/claude-code/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/claude-code/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/claude-code/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/claude-code/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/claude-code/stage.png"
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "portraitPath": "/characters/codex/portrait.png",
+      "actions": [
+        {
+          "status": "idle",
+          "assetPath": "/characters/codex/portrait.png"
+        },
+        {
+          "status": "running",
+          "assetPath": "/characters/codex/portrait.png"
+        },
+        {
+          "status": "needs_input",
+          "assetPath": "/characters/codex/portrait.png"
+        },
+        {
+          "status": "needs_auth",
+          "assetPath": "/characters/codex/portrait.png"
+        },
+        {
+          "status": "done",
+          "assetPath": "/characters/codex/portrait.png"
+        },
+        {
+          "status": "error",
+          "assetPath": "/characters/codex/portrait.png"
+        },
+        {
+          "status": "offline",
+          "assetPath": "/characters/codex/portrait.png"
+        }
+      ],
+      "stagePortraitPath": "/characters/codex/stage.png"
+    }
+  ],
+  "customStatuses": [],
+  "minStageDwellMs": 120000
+}

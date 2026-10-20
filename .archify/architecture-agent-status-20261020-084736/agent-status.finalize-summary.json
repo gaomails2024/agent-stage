@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/candidate.json",
+    "sha256": "0241f6b6c5693ba0e816e93032e3a3603f661d5f09c7bbc3bb69dcc36d158978",
+    "bytes": 9016
+  },
+  "artifact": {
+    "path": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.html",
+    "sha256": "b6d029f40b305fbb8535a813e73bb54c6fa23cdff12b36d56171b1c3679707e9",
+    "bytes": 849506
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.finalize.json",
+    "summaryReceipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.finalize-summary.json",
+    "browserCheckReceipt": "/workspace/agent-status-board/.archify/architecture-agent-status-20261020-084736/agent-status.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-20T00:42:38.069Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4904,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 1,
+      "routesOverSuggestedStretch": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "config-to-adapters",
+            "from": "config_store",
+            "to": "adapter_host",
+            "label": "启用实例与适配器",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "right": {
+            "id": "priority-flag",
+            "from": "status_store",
+            "to": "priority_gate",
+            "label": "高优闸门",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "point": [
+            790,
+            232
+          ]
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "id": "optional-discover",
+            "from": "auto_discover",
+            "to": "settings_ui",
+            "label": "建议候选",
+            "collectionIndex": 3,
+            "artifactIndex": 4
+          },
+          "bends": 2,
+          "stretch": 1.358
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "config_store → adapter_host crosses status_store → priority_gate: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "auto_discover → settings_ui needs 2 bends: move node auto_discover or settings_ui so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

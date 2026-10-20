@@ -1,0 +1,38 @@
+# Dependencies / build
+node_modules
+dist
+dist-ssr
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Tauri / Rust
+src-tauri/target
+src-tauri/gen
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Test / coverage
+coverage
+
+# Optional: keep architecture exports tracked; uncomment to ignore:
+# .archify/
+
+# Runtime status drops (local bridge)
+.runtime/
+
+# Local portrait scratch
+tmp-icons/
