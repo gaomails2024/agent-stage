@@ -25,11 +25,13 @@
 
 ## 截图 · Screenshots
 
-| 主看板 | 上台 | 左右坐席 |
+主看板为 **2026-10-21 实况花名册**（本机 live poller + 全坐席启动，非 Mock）。上台 / 分屏仍为较早 UI 示意；同目录另有 `live-roster-20261021.png` 备份。
+
+| 主看板（实况） | 上台（较早示意） | 左右坐席（较早示意） |
 |--------|------|----------|
 | ![dashboard](docs/screenshots/m1-dashboard.png) | ![on stage](docs/screenshots/m1-on-stage.png) | ![split](docs/screenshots/m1-split-stage.png) |
 
-坐席侧布局（2048 宽副屏示意）：
+坐席侧布局（2048 宽副屏示意，较早）：
 
 | bottom | left | right |
 |--------|------|-------|
