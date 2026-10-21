@@ -14,6 +14,8 @@
 
 **默认不依赖云账号。** 浏览器 Demo 用 `public/status/*.json`；真实直播状态靠本机 **macOS poller**（需本地已安装对应 Agent 应用）。
 
+![Agent Stage 实况花名册](docs/screenshots/m1-dashboard.png)
+
 ## 功能 · Features
 
 - 主舞台 + 坐席条（bottom / left / right 真改布局）
@@ -23,19 +25,6 @@
 - 设置持久化：浏览器 `localStorage`，Tauri `app_data_dir/config.json`
 - Mock / 文件 / 部分厂商 Jobs bridge（见 docs）
 
-## 截图 · Screenshots
-
-主看板为 **2026-10-21 实况花名册**（本机 live poller + 全坐席启动，非 Mock）。上台 / 分屏仍为较早 UI 示意；同目录另有 `live-roster-20261021.png` 备份。
-
-| 主看板（实况） | 上台（较早示意） | 左右坐席（较早示意） |
-|--------|------|----------|
-| ![dashboard](docs/screenshots/m1-dashboard.png) | ![on stage](docs/screenshots/m1-on-stage.png) | ![split](docs/screenshots/m1-split-stage.png) |
-
-坐席侧布局（2048 宽副屏示意，较早）：
-
-| bottom | left | right |
-|--------|------|-------|
-| ![bottom](docs/screenshots/layout-bottom-2048.png) | ![left](docs/screenshots/layout-left-2048.png) | ![right](docs/screenshots/layout-right-2048.png) |
 
 ## 前置 · Prerequisites
 
