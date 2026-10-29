@@ -17,6 +17,11 @@ pnpm-debug.log*
 .DS_Store
 ._*
 
+# Backups / local scratch
+*.bak
+*.bak-*
+*_probe*.ts
+
 # Tauri / Rust
 src-tauri/target
 src-tauri/gen
@@ -32,8 +37,9 @@ coverage
 # Optional: keep architecture exports tracked; uncomment to ignore:
 # .archify/
 
-# Runtime status drops (local bridge)
+# Runtime status drops (local bridge scratch)
 .runtime/
 
 # Local portrait scratch
 tmp-icons/
+tmp-shots/

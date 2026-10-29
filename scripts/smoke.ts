@@ -20,11 +20,7 @@ import {
   saveConfig,
 } from '../src/config/persist';
 import { createSeededStore } from '../src/store/runtimeStore';
-import {
-  applyStatusUpdate,
-  MAX_ON_STAGE,
-  tickTimeouts,
-} from '../src/stage/rules';
+import { deriveRuntime, projectStage, MAX_ON_STAGE } from '../src/stage/rules';
 import { attentionForStatus } from '../src/domain/status';
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -37,61 +33,32 @@ assert(attentionForStatus('running') === 'silent', 'running silent');
 assert(attentionForStatus('needs_auth') === 'attention', 'auth');
 assert(attentionForStatus('done') === 'attention', 'done=attention MVP');
 
-console.log('smoke: stage FIFO max 2');
-let queue: string[] = [];
-const mk = (id: string, status: 'needs_auth' | 'idle') => {
-  const r = applyStatusUpdate({
-    prev: undefined,
-    agentId: id,
-    status,
-    summary: 't',
-    stageQueue: queue,
-  });
-  queue = r.stageQueue;
-  return r.runtime;
-};
+console.log('smoke: 舞台按紧急度排序、超员不丢信息');
+const m1 = new Map<string, ReturnType<typeof deriveRuntime>>();
+for (const [id, st] of [['a', 'needs_auth'], ['b', 'done'], ['c', 'needs_input']] as const) {
+  m1.set(id, deriveRuntime({ agentId: id, status: st, summary: st, now: new Date('2026-01-01T00:00:00Z') }));
+}
+const p1 = projectStage(m1, MAX_ON_STAGE, [], 60_000, Date.parse('2026-01-01T00:00:00Z'));
+assert(p1.stage.onStageIds.length === MAX_ON_STAGE, 'stage capped');
+assert(p1.stage.onStageIds[0] === 'a', 'needs_auth first');
+assert(p1.stage.onStageIds[1] === 'c', 'needs_input second');
+assert(p1.stage.seatHighlightIds.length === 3, 'all three highlighted');
+assert(p1.stage.onStageIds.includes('b') === false, 'done waits behind');
 
-const a = mk('a', 'needs_auth');
-const b = mk('b', 'needs_auth');
-const c = mk('c', 'needs_auth');
-assert(a.onStage && b.onStage, 'first two on stage');
-assert(!c.onStage && c.seatHighlight, 'third waits on seat');
-assert(queue.length === MAX_ON_STAGE, 'queue size 2');
+console.log('smoke: 需要人不会因为时间流逝消失');
+const base = deriveRuntime({ agentId: 'a', status: 'needs_input', summary: 't', now: new Date('2026-01-01T00:00:00Z') });
+const later = deriveRuntime({
+  prev: base, agentId: 'a', status: 'needs_input', summary: 't2',
+  now: new Date('2026-01-01T06:00:00Z'),
+});
+assert(later.attentionSince === base.attentionSince, '等待起点不被刷新');
+const pLater = projectStage(new Map([['a', later]]), MAX_ON_STAGE, [], 60_000, Date.parse('2026-01-01T06:00:00Z'));
+assert(pLater.stage.seatHighlightIds.includes('a'), '六小时后仍在坐席高亮（只是让出舞台）');
 
-console.log('smoke: timeout demotes (no immediate re-promote)');
-const t0 = new Date('2026-01-01T00:00:00Z');
-const map = new Map([
-  [
-    'a',
-    {
-      ...a,
-      attentionSince: t0.toISOString(),
-      onStage: true,
-      seatHighlight: true,
-      stageDismissed: false,
-    },
-  ],
-  [
-    'c',
-    {
-      ...c,
-      attentionSince: t0.toISOString(),
-      onStage: false,
-      seatHighlight: true,
-      stageDismissed: false,
-    },
-  ],
-]);
-const after = tickTimeouts(
-  map,
-  ['a'],
-  new Date(t0.getTime() + 120_001),
-  120_000,
-);
-assert(!after.runtimes.get('a')!.onStage, 'demoted');
-assert(after.runtimes.get('a')!.seatHighlight, 'still highlighted');
-assert(after.runtimes.get('a')!.stageDismissed, 'marked dismissed');
-assert(after.runtimes.get('c')!.onStage, 'waiter c promoted into free slot');
+console.log('smoke: 弱证据与未知状态不占注意力');
+const weak = deriveRuntime({ agentId: 'w', status: 'done', summary: 'x', confidence: 'weak' });
+assert(weak.attention === 'silent', 'weak -> silent');
+assert(deriveRuntime({ agentId: 'u', status: 'busy', summary: 'x' }).attention === 'silent', 'unknown -> silent');
 
 console.log('smoke: MockAdapter emits');
 const cfg = defaultConfig();
@@ -123,7 +90,6 @@ const merged = mergeWithDefaults({
 assert(merged.windowWidth === 800, 'merged width');
 assert(merged.agents.length === 1 && merged.agents[0]!.name === 'X', 'merged agent');
 assert(merged.customStatuses[0]?.id === 'paused', 'custom status');
-assert(merged.escalationTimeoutMs > 0, 'timeout defaulted');
 
 if (typeof globalThis.localStorage === 'undefined') {
   const mem = new Map<string, string>();

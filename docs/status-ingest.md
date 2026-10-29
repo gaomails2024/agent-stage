@@ -93,6 +93,11 @@ Useful when the Stage UI is browser-only and cannot watch the home directory. No
 
 For Vite without Tauri FS, configure `adapterConfig.statusUrl` (e.g. `/status/demo.json` under `public/`). Same JSON schema.
 
+Poll-backed writers must update `checkedAt` on every successful poll, even when
+`status` is unchanged. The UI treats a missing/stale `checkedAt` as a dead
+source and shows `offline`. Event-driven hooks must omit `checkedAt`; a quiet
+session is not a dead session.
+
 ---
 
 ## Vendor research (public docs, 2026)
@@ -248,22 +253,6 @@ Follow **user priority** (WorkBuddy → … → Codex), not ease.
 | Later | localhost POST ingest / auto-discovery | Optional |
 
 **Mac handoff default:** WorkBuddy/CodeBuddy Jobs adapter or buddy bridge → file; Claude/GLM hooks for permission states.
-
----
-
-## Known live gaps (Mac poller)
-
-These are product/signal limits observed in `scripts/bridges/macos-live-status-poll.mjs`,
-not protocol bugs. Details: [LIMITATIONS.md](./LIMITATIONS.md).
-
-| Product | Gap |
-|---------|-----|
-| Hermes | In-memory gateway approvals / live “waiting” not on control socket |
-| Claude Code | Permission / needs_input without hooks → invisible |
-| 豆包工作 | `needs_input` not emitted by current poller |
-| Codex | Interactive approval weaker than Claude hooks |
-
-Ship hooks / file drops when fine wait states matter.
 
 ---
 

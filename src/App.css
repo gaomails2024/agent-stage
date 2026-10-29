@@ -377,9 +377,9 @@
   flex-direction: column;
   justify-content: flex-start;
   align-items: stretch;
-  background: #ffffff;
-  border: 2px solid #5b9fd4;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -420,7 +420,7 @@
 }
 
 .agent-card.variant-stage .portrait {
-  background: #ffffff;
+  background: transparent;
   /* Middle band only — name above, status below; no overlays */
   flex: 1 1 auto;
   width: 100%;
@@ -474,6 +474,7 @@
 }
 
 .portrait-asset {
+  /* video uses same box as img */
   position: absolute;
   inset: 0;
   width: 100%;
@@ -577,8 +578,8 @@
   margin: 0;
   padding: 0.45rem 0.55rem 0.35rem;
   border: none;
-  background: #ffffff;
-  color: #1a2230;
+  background: transparent;
+  color: #ffffff;
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.15;
@@ -587,7 +588,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-  text-shadow: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .agent-card.variant-stage .stage-status-zone {
@@ -598,7 +599,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.35rem 0 0.45rem;
-  background: #ffffff;
+  background: transparent;
 }
 
 .agent-card.variant-stage .portrait-status-chip.stage-status-bar {
@@ -840,11 +841,16 @@
   color: #c5d4e8;
 }
 
-/* Stage: enter once, no breath glow */
+/* Stage: enter once, no frame/plate, no breath glow */
 .agent-card.on-stage {
-  border-color: #5b9fd4;
-  box-shadow: 0 0 0 1px rgba(91, 159, 212, 0.55);
+  border: none;
+  box-shadow: none;
   animation: stage-enter 0.4s ease;
+}
+
+/* Settling tail: visually quieter than a real alert, but keeps the card in place. */
+.agent-card.is-settling .stage-status-bar {
+  opacity: 0.72;
 }
 
 /* Breath glow follows status chip color (CSS vars + data-status) */
@@ -1372,4 +1378,177 @@
   width: 100%;
   font-size: 0.78rem;
   font-weight: 650;
+}
+
+/* Seat/stage decorative motion clips (same framing as stills) */
+video.portrait-asset.portrait-motion {
+  background: transparent;
+  pointer-events: none;
+  z-index: 1; /* over still img; opacity 0 between plays shows exact still */
+}
+
+/* —— forceVersion stage-fluid-seat-fixed-v1 ——
+   Page = 100% fluid. Right/left seat column = FIXED width (4 cards @ --seat-card-w
+   + gaps + padding = 578.4px at 130px cards); never shrinks/grows with the window.
+   Stage (left) takes ALL remaining width/height; the blue-framed plate sizes to
+   min(available width, available height × aspect) via container query units. */
+.stage-layout.side-left,
+.stage-layout.side-right {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.stage-layout.side-left .seat-bar,
+.stage-layout.side-right .seat-bar {
+  --seat-col-w: calc(4 * var(--seat-card-w) + 3 * 12px + 1.4rem);
+  flex: 0 0 var(--seat-col-w);
+  width: var(--seat-col-w);
+  min-width: var(--seat-col-w);
+  max-width: var(--seat-col-w);
+  max-height: 100% !important;
+  overflow-x: hidden;
+  overflow-y: auto; /* only the seat stack may scroll, internally */
+  scrollbar-width: none;
+}
+.stage-layout.side-left .stage-view,
+.stage-layout.side-right .stage-view {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  container-type: size;
+}
+.stage-layout.side-left .stage-view .stage-grid,
+.stage-layout.side-right .stage-view .stage-grid {
+  max-width: none;
+  height: 100%;
+}
+.stage-layout.side-left .stage-slot,
+.stage-layout.side-right .stage-slot {
+  align-items: center;
+  min-width: 0;
+}
+/* Plate aspect ≈ 0.6 (2:3 portrait band + name band + status band). */
+.stage-layout.side-left .stage-view.split-1 .stage-slot .agent-card.variant-stage,
+.stage-layout.side-right .stage-view.split-1 .stage-slot .agent-card.variant-stage {
+  height: calc(100cqh - 1.5rem);
+  width: min(calc(100cqw - 1.5rem), calc((100cqh - 1.5rem) * 0.6));
+  max-height: none;
+  max-width: none;
+}
+.stage-layout.side-left .stage-view.split-2 .stage-slot .agent-card.variant-stage,
+.stage-layout.side-right .stage-view.split-2 .stage-slot .agent-card.variant-stage {
+  height: calc(100cqh - 1.5rem);
+  width: min(calc(50cqw - 1.875rem), calc((100cqh - 1.5rem) * 0.6));
+  max-height: none;
+  max-width: none;
+}
+
+/* header-bottomleft-v1: no top bar; Settings/preview float bottom-left */
+.corner-actions {
+  position: fixed;
+  left: 0.5rem;
+  bottom: 0.4rem;
+  z-index: 50;
+  display: flex;
+  gap: 0.35rem;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.corner-actions:hover { opacity: 1; }
+.corner-actions .btn-sm {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+.corner-actions .btn {
+  border-color: transparent;
+}
+.corner-actions .btn:hover:not(:disabled) {
+  border-color: var(--border);
+}
+.corner-actions .btn-camouflage {
+  color: #1c2430;
+}
+.corner-actions .btn-camouflage:hover {
+  color: #243044;
+}
+.corner-actions .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ——— "在等你"信息层：等待时长 / 摘要 / 知道了 / 弱证据角标 ——— */
+.agent-card.variant-stage .stage-status-line {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agent-card.variant-stage .stage-waited {
+  font-family: "JetBrains Mono", "SF Mono", "Menlo", ui-monospace, monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-card.variant-stage .stage-summary {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.95;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-card.variant-stage .stage-status-bar {
+  position: relative;
+}
+
+.agent-card.variant-stage .stage-ack {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0;
+  transform: translateY(115%);
+  z-index: 3;
+  background: rgba(15, 20, 25, 0.82);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(4px);
+}
+
+/* 弱证据：不占注意力，只标一个问号，点开 title 看原因 */
+.agent-card.variant-seat .card-weak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.25rem;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.config-warning {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 40;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(180, 83, 9, 0.92);
+  color: #fff;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }

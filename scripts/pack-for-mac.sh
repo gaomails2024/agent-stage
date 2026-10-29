@@ -15,6 +15,12 @@ tar -C "$ROOT" \
   --exclude=dist \
   --exclude=.git \
   --exclude=src-tauri/target \
+  --exclude=src-tauri/gen \
+  --exclude='_probe*.ts' \
+  --exclude=.box-agent \
+  --exclude=.box-agent-scratch \
+  --exclude='*.bak' \
+  --exclude='*.bak-*' \
   --exclude='*.tar.gz' \
   --exclude='*.zip' \
   -cf - . | tar -C "$DEST" -xf -

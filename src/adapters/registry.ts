@@ -72,13 +72,18 @@ export function createAdapterForAgent(
   }
 
   if (isFileBackedAdapterType(t)) {
-    return FileStatusAdapter.fromAdapterConfig(
-      agent.id,
-      withFileDefaults(agent.id, t, cfg),
-    );
+    const merged = withFileDefaults(agent.id, t, cfg);
+    return new FileStatusAdapter({
+      agentId: agent.id,
+      statusPath: merged.statusPath,
+      statusUrl: merged.statusUrl,
+      pollIntervalMs: merged.pollIntervalMs,
+      // Claude hooks / manual drops are event-driven: quiet ≠ dead.
+      eventDriven: t === 'claude-code' || t === 'glm',
+    });
   }
 
-  // mock is started manually via Debug / Start Mock
+  // mock stays test-only; the live UI never wires it (it would overwrite real state).
   return null;
 }
 

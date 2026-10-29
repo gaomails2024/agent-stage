@@ -1,10 +1,6 @@
 import type { AgentInstance } from '../domain/agent';
 import type { BuiltinStatus, CustomStatusDef } from '../domain/status';
 import { BUILTIN_STATUSES } from '../domain/status';
-import {
-  DEFAULT_ESCALATION_TIMEOUT_MS,
-  DEFAULT_MIN_STAGE_DWELL_MS,
-} from '../stage/rules';
 import { DEFAULT_DISPLAY_PROFILE } from './display';
 
 export type SeatSide = 'bottom' | 'left' | 'right';
@@ -37,6 +33,7 @@ export interface CharacterConfig {
   actions: StatusActionBinding[];
 }
 
+/** 界面配置。 */
 export interface AppConfig {
   /** Default secondary-monitor canvas (iPad 4 landscape logical 1024×768) */
   displayProfileId: string;
@@ -47,9 +44,10 @@ export interface AppConfig {
   visibleSeats: number;
   seatCardWidth: number;
   seatStripHeight: number;
+  /** 上台后多久让出舞台（ms）；超时后坐席仍然高亮。 */
   escalationTimeoutMs: number;
-  /** Min ms attention stays on main stage before silent can clear it */
-  minStageDwellMs: number;
+  /** 舞台动画抽中美色版（se.stage-motion.webm）的概率，0–100。 */
+  seStageChancePercent: number;
   agents: AgentInstance[];
   characters: CharacterConfig[];
   customStatuses: CustomStatusDef[];
@@ -68,7 +66,7 @@ export const DEFAULT_ROSTER_SPEC: ReadonlyArray<{
   { id: 'hermes-1', name: 'Hermes Agent', adapterType: 'hermes', characterId: 'hermes', vendor: 'hermes' },
   { id: 'dsh-1', name: 'DeepSeek Harness', adapterType: 'dsh', characterId: 'dsh', vendor: 'dsh' },
   { id: 'grok-bot-1', name: 'Grok Bot', adapterType: 'file', characterId: 'grok-bot', vendor: 'grok-bot' },
-  { id: 'marvs-1', name: 'Marvis', adapterType: 'marvs', characterId: 'marvis', vendor: 'marvs' },
+  { id: 'marvs-1', name: 'Marvis', adapterType: 'marvs', characterId: 'marvis', vendor: 'marvis' },
   { id: 'autoclaw-1', name: 'AutoClaw', adapterType: 'autoclaw', characterId: 'autoclaw', vendor: 'autoclaw' },
   { id: 'doubao-1', name: '豆包工作', adapterType: 'file', characterId: 'doubao', vendor: 'doubao' },
   { id: 'claude-code-1', name: 'Claude Code', adapterType: 'claude-code', characterId: 'claude-code', vendor: 'claude-code' },
@@ -130,8 +128,8 @@ export function defaultConfig(): AppConfig {
     visibleSeats: agents.length,
     seatCardWidth: DEFAULT_DISPLAY_PROFILE.defaultSeatCardWidth,
     seatStripHeight: DEFAULT_DISPLAY_PROFILE.defaultSeatStripHeight,
-    escalationTimeoutMs: DEFAULT_ESCALATION_TIMEOUT_MS,
-    minStageDwellMs: DEFAULT_MIN_STAGE_DWELL_MS,
+    escalationTimeoutMs: 60_000,
+    seStageChancePercent: 0,
     agents,
     characters: uniqueChars,
     customStatuses: [],

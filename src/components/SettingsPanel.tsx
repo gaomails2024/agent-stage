@@ -197,8 +197,6 @@ export function SettingsPanel({
     }
   };
 
-  const timeoutSec = Math.round(draft.escalationTimeoutMs / 1000);
-  const dwellSec = Math.round((draft.minStageDwellMs ?? 120_000) / 1000);
 
   return (
     <div
@@ -378,38 +376,41 @@ export function SettingsPanel({
                 需介入最长展示（秒）
                 <input
                   type="number"
-                  min={1}
+                  min={5}
                   max={3600}
-                  value={timeoutSec}
+                  value={Math.round(draft.escalationTimeoutMs / 1000)}
                   onChange={(e) =>
                     setDraft((d) => ({
                       ...d,
                       escalationTimeoutMs:
-                        Math.max(1, Number(e.target.value) || 1) * 1000,
+                        (Number(e.target.value) || 60) * 1000,
                     }))
                   }
                 />
                 <span className="settings-field-hint">
-                  仍需介入时，超时后下舞台但坐席继续高亮（默认 120）。
+                  超时后只让出舞台，坐席仍保持高亮。
                 </span>
               </label>
               <label>
-                需介入最短停留（秒）
+                美色版上台动画概率 (%)
                 <input
                   type="number"
-                  min={1}
-                  max={3600}
-                  value={dwellSec}
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={draft.seStageChancePercent}
                   onChange={(e) =>
                     setDraft((d) => ({
                       ...d,
-                      minStageDwellMs:
-                        Math.max(1, Number(e.target.value) || 1) * 1000,
+                      seStageChancePercent: Math.min(
+                        100,
+                        Math.max(0, Number(e.target.value) || 0),
+                      ),
                     }))
                   }
                 />
                 <span className="settings-field-hint">
-                  上舞台后至少停留这么久才因状态变回空闲/工作中而离开（默认 120，避免一闪就没）。
+                  每次上台抽一次；抽中就用 se.stage-motion.webm，素材缺失时自动回退普通版。
                 </span>
               </label>
               <label>
@@ -523,7 +524,7 @@ export function SettingsPanel({
           <details className="settings-section settings-advanced">
             <summary>高级（适配器 / 自定义状态 / 窗口尺寸）</summary>
             <p className="muted settings-note">
-              日常使用不必改。默认 12 个 Agent 已接好 file/bridge 状态文件。
+              日常使用不必改。默认 10 个 Agent 已接好 file/bridge 状态文件。
             </p>
             <div className="settings-agent-list">
               {draft.agents.map((a) => (
@@ -536,7 +537,7 @@ export function SettingsPanel({
                         updateAgent(a.id, { adapterType: e.target.value })
                       }
                     >
-                      {ADAPTER_TYPES_PRIORITY.map((t) => (
+                      {ADAPTER_TYPES_PRIORITY.filter((t) => t !== 'mock').map((t) => (
                         <option key={t} value={t}>
                           {ADAPTER_LABELS[t]}
                         </option>

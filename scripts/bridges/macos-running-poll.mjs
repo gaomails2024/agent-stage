@@ -32,12 +32,14 @@ function psText() {
 }
 
 function writeSnapshot(agentId, status, summary, vendor, publicDir) {
+  const nowIso = new Date().toISOString();
   const body = {
     schemaVersion: 1,
     agentId,
     status,
     summary,
-    observedAt: new Date().toISOString(),
+    observedAt: nowIso,
+    checkedAt: nowIso,
     vendor,
     meta: { source: 'macos-running-poll' },
   };
@@ -58,10 +60,12 @@ function tick() {
   const publicDir = join(PROJECT, 'public', 'status');
   for (const a of AGENTS) {
     const running = a.patterns.some((p) => text.includes(p));
-    const status = running ? 'running' : 'idle';
-    const summary = running ? `${a.name}: process running` : `${a.name}: not running`;
-    writeSnapshot(a.id, status, summary, a.vendor, publicDir);
-    console.log(`[${new Date().toISOString()}] ${a.id} ${status}`);
+    if (!running) {
+      // 这个轮询器只有 presence 能力。绝不能把 done/needs_input/error 覆盖成 idle。
+      continue;
+    }
+    writeSnapshot(a.id, 'running', `${a.name}: process running`, a.vendor, publicDir);
+    console.log(`[${new Date().toISOString()}] ${a.id} running`);
   }
 }
 

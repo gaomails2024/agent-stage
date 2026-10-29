@@ -32,6 +32,53 @@ function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
 
+function mergeById<T extends { id: string }>(base: T[], incoming: T[]): T[] {
+  const byId = new Map(base.map((x) => [x.id, x]));
+  for (const item of incoming) {
+    if (!byId.has(item.id)) byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
+/**
+ * 版本升级只补缺，不推平用户改过的东西。
+ * 新增 agent/角色会进来；已存在的以本地配置为准。
+ */
+function mergeOverride(base: AppConfig, override: Record<string, unknown>): AppConfig {
+  const candidate = mergeWithDefaults(override);
+  const baseRaw = base as unknown as Record<string, unknown>;
+  const bg = isRecord(baseRaw.background) ? baseRaw.background : {};
+  const overrideBg = isRecord(override.background) ? override.background : {};
+  return mergeWithDefaults({
+    ...override,
+    // 本地已有字段优先，override 只补本地没有的新字段 / 新条目。
+    ...baseRaw,
+    // 只补 override 真正声明的新项，已有项保持用户当前值。
+    // 不能无条件 merge candidate：override 没写 agents 时它会是默认 10 人，
+    // 会把用户已删除的 agent 又塞回来。
+    agents: Array.isArray(override.agents)
+      ? mergeById(base.agents, candidate.agents)
+      : base.agents,
+    characters: Array.isArray(override.characters)
+      ? mergeById(base.characters, candidate.characters)
+      : base.characters,
+    customStatuses: base.customStatuses,
+    background: { ...overrideBg, ...bg },
+  });
+}
+
+/** localStorage 是浏览器可见镜像；Tauri 下不要把 token 写进去。 */
+function stripSecrets(config: AppConfig): AppConfig {
+  return {
+    ...config,
+    agents: config.agents.map((a) =>
+      a.adapterConfig?.authToken
+        ? { ...a, adapterConfig: { ...a.adapterConfig, authToken: undefined } }
+        : a,
+    ),
+  };
+}
+
 function normalizeAgent(raw: unknown, index: number): AgentInstance | null {
   if (!isRecord(raw)) return null;
   const seatIndex = num(raw.seatIndex, index, 0, MAX_SEATS - 1);
@@ -99,7 +146,9 @@ function normalizeCharacter(raw: unknown, fallback: CharacterConfig): CharacterC
 }
 
 /**
- * Merge unknown JSON with defaults — safe for partial / older configs.
+ * 合并未知 JSON 与默认值 —— 对残缺 / 老版本配置安全。
+ *
+ * minStageDwellMs 已废弃；escalationTimeoutMs 保留并迁移。
  */
 export function mergeWithDefaults(raw: unknown): AppConfig {
   const base = defaultConfig();
@@ -185,14 +234,14 @@ export function mergeWithDefaults(raw: unknown): AppConfig {
     escalationTimeoutMs: num(
       raw.escalationTimeoutMs,
       base.escalationTimeoutMs,
-      1000,
+      5_000,
       3_600_000,
     ),
-    minStageDwellMs: num(
-      raw.minStageDwellMs,
-      base.minStageDwellMs ?? 120_000,
-      1000,
-      3_600_000,
+    seStageChancePercent: num(
+      raw.seStageChancePercent,
+      base.seStageChancePercent,
+      0,
+      100,
     ),
     agents,
     characters,
@@ -243,12 +292,14 @@ function loadFromLocalStorage(): string | null {
   }
 }
 
-function saveToLocalStorage(json: string): void {
+function saveToLocalStorage(json: string): boolean {
   try {
-    if (typeof localStorage === 'undefined') return;
+    if (typeof localStorage === 'undefined') return false;
     localStorage.setItem(LOCAL_STORAGE_KEY, json);
+    return true;
   } catch {
     // quota / private mode
+    return false;
   }
 }
 
@@ -257,6 +308,8 @@ export type PersistBackend = 'tauri-file' | 'localStorage' | 'defaults';
 export interface LoadConfigResult {
   config: AppConfig;
   backend: PersistBackend;
+  /** 读取过程中遇到的问题（不阻断启动，但应该让用户看到） */
+  warnings: string[];
 }
 
 export async function loadConfig(): Promise<AppConfig> {
@@ -284,70 +337,102 @@ function writeForceVersion(v: string): void {
   }
 }
 
+/**
+ * 读配置。优先级：已有的用户配置（Tauri 文件 > localStorage）
+ * 之上再叠加 public/config.override.json 里声明过的字段。
+ *
+ * forceVersion 只在版本号变化时生效，而且**只覆盖 override 里写明的字段**，
+ * 用户自己改过的名字/背景/座位不会被推平
+ * （旧实现是整份替换，一次 bump 就抹掉所有手工调整）。
+ */
 export async function loadConfigDetailed(): Promise<LoadConfigResult> {
-  // Optional one-shot / versioned roster from Vite public/ (Mac discovery, etc.)
-  try {
-    const res = await fetch('/config.override.json', { cache: 'no-store' });
-    if (res.ok) {
-      const raw = await res.json();
-      if (raw && typeof raw === 'object') {
-        const rec = raw as Record<string, unknown>;
-        const forceVersion =
-          typeof rec.forceVersion === 'string' || typeof rec.forceVersion === 'number'
-            ? String(rec.forceVersion)
-            : null;
-        const forceAlways = rec.force === true;
-        const versionBump =
-          forceVersion != null && readForceVersion() !== forceVersion;
-        if (forceAlways || versionBump) {
-          const {
-            force: _f,
-            forceVersion: _fv,
-            ...rest
-          } = rec;
-          const config = mergeWithDefaults(rest);
-          await saveConfig(config);
-          if (forceVersion) writeForceVersion(forceVersion);
-          return { config, backend: 'localStorage' };
-        }
-      }
-    }
-  } catch {
-    /* ignore */
-  }
+  const warnings: string[] = [];
+
+  // 1) 先拿现有配置
+  let baseConfig: AppConfig | null = null;
+  let backend: PersistBackend = 'defaults';
 
   const fromTauri = await loadFromTauriFile();
   if (fromTauri) {
     try {
-      return {
-        config: mergeWithDefaults(JSON.parse(fromTauri)),
-        backend: 'tauri-file',
-      };
+      baseConfig = mergeWithDefaults(JSON.parse(fromTauri));
+      backend = 'tauri-file';
     } catch {
-      /* fall through */
+      warnings.push('Tauri 配置文件解析失败，已回退到其它来源');
+    }
+  }
+  if (!baseConfig) {
+    const fromLs = loadFromLocalStorage();
+    if (fromLs) {
+      try {
+        baseConfig = mergeWithDefaults(JSON.parse(fromLs));
+        backend = 'localStorage';
+      } catch {
+        warnings.push('本地配置解析失败，已使用默认配置');
+      }
     }
   }
 
-  const fromLs = loadFromLocalStorage();
-  if (fromLs) {
-    try {
-      return {
-        config: mergeWithDefaults(JSON.parse(fromLs)),
-        backend: 'localStorage',
-      };
-    } catch {
-      /* fall through */
+  // 2) override 叠加
+  try {
+    const res = await fetch('/config.override.json', { cache: 'no-store' });
+    if (res.ok) {
+      const raw: unknown = await res.json();
+      if (isRecord(raw)) {
+        const forceVersion =
+          typeof raw.forceVersion === 'string' || typeof raw.forceVersion === 'number'
+            ? String(raw.forceVersion)
+            : null;
+        const forceAlways = raw.force === true;
+        const versionBump = forceVersion != null && readForceVersion() !== forceVersion;
+        if (forceAlways || versionBump) {
+          const { force: _f, forceVersion: _fv, ...rest } = raw;
+          // 关键：以现有配置为底，新增项补进来，已有项不推平。
+          const config = baseConfig
+            ? mergeOverride(baseConfig, rest)
+            : mergeWithDefaults(rest);
+          try {
+            await saveConfig(config);
+            // 保存成功才记版本号，避免"记了版本但没存进去"导致下次不再导入
+            if (forceVersion) writeForceVersion(forceVersion);
+          } catch (e) {
+            warnings.push(
+              `override 导入后保存失败：${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+          return { config, backend: isTauri() ? 'tauri-file' : 'localStorage', warnings };
+        }
+      }
     }
+  } catch {
+    /* override 是可选增强，读不到就用现有配置 */
   }
 
-  return { config: defaultConfig(), backend: 'defaults' };
+  return { config: baseConfig ?? defaultConfig(), backend, warnings };
 }
 
+/**
+ * 保存配置。
+ * localStorage 是镜像，Tauri 文件是主存储；主存储失败会**抛错**，
+ * 不再静默降级 —— 否则用户会看到"已保存"，重启却回到旧配置。
+ */
 export async function saveConfig(config: AppConfig): Promise<PersistBackend> {
   const json = JSON.stringify(config, null, 2);
-  // Always mirror to localStorage for Vite / fallback
-  saveToLocalStorage(json);
+  // localStorage 是可读镜像，不放 token；真正的主存储是 Tauri 文件。
+  const mirror = isTauri() ? stripSecrets(config) : config;
+  const lsOk = saveToLocalStorage(JSON.stringify(mirror, null, 2));
   const tauriOk = await saveToTauriFile(json);
+
+  if (isTauri() && !tauriOk) {
+    throw new Error(
+      lsOk
+        ? '无法写入应用数据目录（配置只存在浏览器缓存里，重启可能丢失）'
+        : '配置保存失败：应用数据目录与浏览器缓存都不可写',
+    );
+  }
+  if (!isTauri() && !lsOk) {
+    throw new Error('配置保存失败：浏览器缓存不可写（隐私模式或空间不足）');
+  }
   return tauriOk ? 'tauri-file' : 'localStorage';
 }
 

@@ -18,12 +18,14 @@
 
 ## 功能 · Features
 
-- 主舞台 + 坐席条（bottom / left / right 真改布局）
+- 主舞台 + 坐席条（bottom / left / right 真改布局；默认右栏坐席、流体舞台）
 - 可配置角色立绘（六态 + offline）与座位顺序
-- 统一状态快照协议 v1（`FileStatusAdapter` / `statusUrl`）
+- **舞台 / 坐席动效**：`stage-motion.webm` 上台循环；坐席 idle 用 `portrait-motion.webm`；可选 `se.stage-motion.webm`（设置里概率，默认 0）
+- 统一状态快照协议 v1（`FileStatusAdapter` / `statusUrl`；轮询源写 `checkedAt` 心跳）
 - macOS 直播轮询：`pnpm bridge:live`（写入 `~/.agent-stage/status/` 并镜像到 `public/status/`）
 - 设置持久化：浏览器 `localStorage`，Tauri `app_data_dir/config.json`
 - Mock / 文件 / 部分厂商 Jobs bridge（见 docs）
+- 不变量测试：`pnpm test` / `pnpm verify`
 
 
 ## 前置 · Prerequisites
@@ -138,7 +140,7 @@ src/           React UI、adapters、config、舞台逻辑
 src-tauri/     Tauri 2 + config 读写命令
 scripts/       smoke、write-status、bridges（含 macos-live-status-poll）
 public/        静态资源、角色立绘、status 占位、config.override
-docs/          LIMITATIONS / macos / status-ingest / screenshots
+docs/          LIMITATIONS / macos / status-ingest / motion-recipe / screenshots
 examples/hooks/ Claude Code → 快照示例
 .archify/      架构图产物（可选参考）
 ```
@@ -151,6 +153,7 @@ examples/hooks/ Claude Code → 快照示例
 | [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | 保真度总表与已知缺口 |
 | [docs/macos.md](docs/macos.md) | macOS 安装、poller、Jobs、hooks |
 | [docs/status-ingest.md](docs/status-ingest.md) | 协议 v1 + 厂商调研 |
+| [docs/motion-recipe.md](docs/motion-recipe.md) | 坐席 / 舞台 webm 动效制作配方 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 开发与加 adapter/bridge |
 
 ## License

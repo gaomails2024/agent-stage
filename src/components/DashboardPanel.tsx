@@ -1,69 +1,74 @@
 import type { AgentRuntimeState } from '../domain/updates';
 import type { StageSnapshot } from '../stage/rules';
-import type { StatusId } from '../domain/status';
-import { statusLabelZh } from './statusLabels';
 
 export interface DashboardPanelProps {
   stage: StageSnapshot;
   runtimes: AgentRuntimeState[];
-  escalationTimeoutSec: number;
 }
 
-export function DashboardPanel({
-  stage,
-  runtimes,
-  escalationTimeoutSec,
-}: DashboardPanelProps) {
-  const silent = runtimes.filter((r) => r.attention === 'silent').length;
-  const attention = runtimes.filter((r) => r.attention === 'attention').length;
-  const running = runtimes.filter((r) => r.status === 'running').length;
-  const needs = runtimes.filter(
-    (r) => r.status === 'needs_input' || r.status === 'needs_auth',
-  ).length;
-  const byStatus = runtimes.reduce<Record<string, number>>((acc, r) => {
-    acc[r.status] = (acc[r.status] ?? 0) + 1;
-    return acc;
-  }, {});
+/** 和舞台同一口径：只有“真的需要人且证据确定”才算在等你。 */
+export function countBuckets(runtimes: AgentRuntimeState[]) {
+  let needsYou = 0;
+  let done = 0;
+  let error = 0;
+  let running = 0;
+  let idle = 0;
+  let offline = 0;
+  for (const r of runtimes) {
+    if (r.status === 'offline') offline++;
+    else if (r.attention === 'attention') {
+      if (r.status === 'done') done++;
+      else needsYou++;
+    }
+    else if (r.status === 'running') running++;
+    else idle++;
+  }
+  return { needsYou, done, error, running, idle, offline };
+}
 
+export function DashboardPanel({ stage, runtimes }: DashboardPanelProps) {
+  const b = countBuckets(runtimes);
   return (
     <div className="dashboard-panel">
       <div className="dashboard-hero">
-        <p className="dashboard-kicker">Main stage</p>
-        <h2>Dashboard</h2>
-        <p className="dashboard-sub">
-          静默时显示看板；有 Agent 要介入时会自动上台（最多 2，FIFO）。
-          状态由 bridge / 状态文件轮询刷新。
-        </p>
+        <p className="dashboard-kicker">Agent Stage</p>
+        <h2>{stage.waitingCount > 0 ? `${stage.waitingCount} 个在等你` : '都还好'}</h2>
       </div>
       <div className="dashboard-stats">
         <div className="stat">
           <span className="stat-n">{runtimes.length}</span>
           <span className="stat-l">Agents</span>
         </div>
+        <div className="stat warn">
+          {/* 与标题同一口径：还没被确认的等待数 */}
+          <span className="stat-n">{stage.waitingCount}</span>
+          <span className="stat-l">在等你</span>
+        </div>
+        <div className="stat warn">
+          <span className="stat-n">{b.needsYou}</span>
+          <span className="stat-l">需介入</span>
+        </div>
         <div className="stat">
-          <span className="stat-n">{running}</span>
+          <span className="stat-n">{b.done}</span>
+          <span className="stat-l">待审</span>
+        </div>
+        <div className="stat">
+          <span className="stat-n">{b.error}</span>
+          <span className="stat-l">出错</span>
+        </div>
+        <div className="stat">
+          <span className="stat-n">{b.running}</span>
           <span className="stat-l">Running</span>
         </div>
-        <div className="stat warn">
-          <span className="stat-n">{needs}</span>
-          <span className="stat-l">Needs you</span>
-        </div>
-        <div className="stat warn">
-          <span className="stat-n">{attention}</span>
-          <span className="stat-l">Attention</span>
-        </div>
         <div className="stat ok">
-          <span className="stat-n">{silent}</span>
-          <span className="stat-l">Silent</span>
+          <span className="stat-n">{b.idle}</span>
+          <span className="stat-l">Idle</span>
+        </div>
+        <div className="stat">
+          <span className="stat-n">{b.offline}</span>
+          <span className="stat-l">Offline</span>
         </div>
       </div>
-      <p className="dashboard-hint">
-        Seat highlights: {stage.seatHighlightIds.length || 0} · Timeout{' '}
-        {escalationTimeoutSec}s ·{' '}
-        {Object.entries(byStatus)
-          .map(([s, n]) => `${statusLabelZh(s as StatusId)} ${n}`)
-          .join(' · ') || '—'}
-      </p>
     </div>
   );
 }

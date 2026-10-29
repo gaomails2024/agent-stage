@@ -128,7 +128,10 @@ export function SeatBar({
 }: SeatBarProps) {
   const sorted = [...agents].sort((a, b) => a.seatIndex - b.seatIndex);
   const sidePlate = isSidePlate(side);
-  const emptyCount = sidePlate ? Math.max(0, PLATE_SLOTS - sorted.length) : 0;
+  // 座位超过 12 个时不要再塞空占位：否则会出现第 4 行并被裁切。
+  const emptyCount = sidePlate
+    ? Math.max(0, PLATE_SLOTS - sorted.length)
+    : 0;
   const { stripRef, gapStyle, overflowing } = useSeatStripGap(
     side,
     sorted.length + emptyCount,

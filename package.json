@@ -17,7 +17,9 @@
     "bridge:workbuddy": "node scripts/bridges/buddy-jobs-poll.mjs --vendor workbuddy",
     "bridge:codebuddy": "node scripts/bridges/buddy-jobs-poll.mjs --vendor codebuddy",
     "bridge:live": "node scripts/bridges/macos-live-status-poll.mjs",
-    "bridge:live:once": "node scripts/bridges/macos-live-status-poll.mjs --once"
+    "bridge:live:once": "node scripts/bridges/macos-live-status-poll.mjs --once",
+    "test": "tsx --test tests/invariants.test.ts",
+    "verify": "tsc -b --pretty false && tsx --test tests/invariants.test.ts && tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

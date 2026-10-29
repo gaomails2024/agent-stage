@@ -17,7 +17,7 @@ function arg(name, fallback) {
 
 const agentId = arg('id', 'hermes-1');
 const base = (process.env.HERMES_BASE_URL || arg('base', 'http://127.0.0.1:8642')).replace(/\/$/, '');
-const key = process.env.HERMES_API_KEY || process.env.API_SERVER_KEY || arg('token', '');
+const key = process.env.HERMES_API_KEY || process.env.API_SERVER_KEY || '';
 const intervalMs = Number(arg('interval', '2500')) || 2500;
 const once = process.argv.includes('--once');
 

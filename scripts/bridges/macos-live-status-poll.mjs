@@ -13,9 +13,12 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  closeSync,
   existsSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -25,6 +28,9 @@ import {
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+
+import { parseLogAgeMs } from '../lib/logTime.mjs';
+import { analyzeCodexRollout } from '../lib/codexRollout.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT = join(__dirname, '../..');
@@ -56,6 +62,8 @@ function writeSnapshot(agentId, status, summary, vendor, meta = {}) {
     status,
     summary,
     observedAt: unchanged && prev.observedAt ? prev.observedAt : new Date().toISOString(),
+    // 心跳与 observedAt 分离：状态没变时 observedAt 保持稳定，checkedAt 仍每次前进。
+    checkedAt: new Date().toISOString(),
     vendor,
     meta: { source: 'macos-live-status-poll', ...meta },
   };
@@ -73,12 +81,14 @@ function writeSnapshot(agentId, status, summary, vendor, meta = {}) {
 
 /** Mirror into Vite public/ only — do not clobber an external ~/.agent-stage heartbeat. */
 function writePublicOnly(agentId, status, summary, vendor, meta = {}) {
+  const nowIso = new Date().toISOString();
   const body = {
     schemaVersion: 1,
     agentId,
     status,
     summary,
-    observedAt: new Date().toISOString(),
+    observedAt: nowIso,
+    checkedAt: nowIso,
     vendor,
     meta: { source: 'macos-live-status-poll', mirrored: true, ...meta },
   };
@@ -171,7 +181,8 @@ const APP_MAINS = {
 };
 
 function sqlite(db, sql) {
-  const r = spawnSync('sqlite3', [db, sql], { encoding: 'utf8', timeout: 5000 });
+  // Always read-only: the poller must never take a write lock on another app's DB.
+  const r = spawnSync('sqlite3', ['-readonly', db, sql], { encoding: 'utf8', timeout: 5000 });
   if (r.status !== 0) return null;
   return (r.stdout || '').trim();
 }
@@ -301,6 +312,31 @@ function openclawActiveTasks(dbPath) {
 }
 
 
+/**
+ * WorkBuddy leaves a helper Electron (`sidecar-entry.js`, often ppid 1) after the
+ * GUI quits. Matching WorkBuddy.app/.../Electron alone then falsely reports idle.
+ * Presence = Electron main without sidecar-entry in argv.
+ * forceVersion workbuddy-ignore-sidecar-v1
+ */
+function workBuddyAppUp(hay = null) {
+  // forceVersion workbuddy-ignore-serve-v1
+  // Main UI = WorkBuddy Electron with NO script arg. The CLI (`cli/bin/codebuddy
+  // --serve|--prewarm`), sidecar-entry.js, daemon-app-server-entry.js and
+  // --type= helpers all run through the same binary and may outlive the GUI.
+  const h = hay ?? psOut();
+  const frag = 'WorkBuddy.app/Contents/MacOS/Electron';
+  for (const line of h.split(/\r?\n/)) {
+    const idx = line.indexOf(frag);
+    if (idx === -1) continue;
+    const rest = line.slice(idx + frag.length).trim();
+    if (/sidecar-entry|cli\/bin\/codebuddy|--serve|--prewarm|--type=|\.js\b|\.asar/i.test(rest)) continue;
+    // any remaining non-flag token (script path) => not the main UI
+    if (rest.split(/\s+/).some((t) => t && !t.startsWith('-'))) continue;
+    return true;
+  }
+  return false;
+}
+
 function liveWorkBuddyInteractive() {
   const dir = join(homedir(), '.workbuddy', 'sessions');
   if (!existsSync(dir)) return null;
@@ -322,7 +358,7 @@ function pollWorkBuddy() {
   const id = 'workbuddy-1';
   const vendor = 'workbuddy';
   const db = join(homedir(), '.workbuddy', 'workbuddy.db');
-  const appUp = appMainRunning(APP_MAINS['workbuddy-1']);
+  const appUp = workBuddyAppUp(); // main UI only; serve/sidecar heartbeats never count (workbuddy-ignore-serve-v1)
   if (!existsSync(db)) {
     writeSnapshot(
       id,
@@ -379,31 +415,70 @@ function pollWorkBuddy() {
     return;
   }
 
-  const row = sqlite(
+  // deleted_at 的语义：NULL 表示未删除；正数才是删除墓碑。
+  // 旧写法 `deleted_at=''` 在 INTEGER 列上永远不成立，等于只筛 NULL。
+  const rowsRaw = sqlite(
     db,
-    "SELECT status || '|' || COALESCE(title,'') || '|' || COALESCE(last_activity_at,0) FROM sessions WHERE deleted_at IS NULL OR deleted_at='' ORDER BY last_activity_at DESC LIMIT 1;",
+    "SELECT status || '|' || COALESCE(title,'') || '|' || COALESCE(last_activity_at,0) || '|' || COALESCE(unread,0) " +
+      'FROM sessions WHERE deleted_at IS NULL ORDER BY last_activity_at DESC LIMIT 5;',
   );
-  if (!row) {
+  if (!rowsRaw) {
     writeSnapshot(id, appUp ? 'idle' : 'offline', 'WorkBuddy：无会话', vendor);
     return;
   }
-  const [st, title, lastAct] = row.split('|');
+  const candidates = rowsRaw.split('\n').filter(Boolean).map((line) => {
+    const [s, t, la, u] = line.split('|');
+    return { status: s, title: t, lastAct: Number(la || 0), unread: Number(u || 0) };
+  });
+
+  // 优先取正在运行的会话；其次要人的；再才是最新的一行（可能是 archived）
+  const activeRow = candidates.find((c) =>
+    ['running', 'working', 'active', 'in_progress', 'busy'].includes(String(c.status).toLowerCase()),
+  );
+  const waitingRow = candidates.find((c) =>
+    ['waiting', 'blocked', 'needs_input', 'pending'].includes(String(c.status).toLowerCase()),
+  );
+  const errorRow = candidates.find((c) =>
+    ['failed', 'error', 'terminated'].includes(String(c.status).toLowerCase()),
+  );
+
+  // 最重要的信号：完成任务但你没看（completed + unread）。
+  // 这是 WorkBuddy 明确给出的字段，不靠时间窗猜 —— 看板才会"亮着直到你处理"。
+  // 旧实现只看"2 分钟内 completed"，结果 2 分钟一到就自己退回空闲，像无端闪一下。
+  const unreadDone = candidates.find(
+    (c) => String(c.status).toLowerCase() === 'completed' && c.unread > 0,
+  );
+  if (unreadDone) {
+    writeSnapshot(id, 'done', `WorkBuddy：完成待审 — ${(unreadDone.title || '').slice(0, 50)}`, vendor, {
+      signal: 'sessions.completed+unread',
+      sessionStatus: unreadDone.status,
+      unread: unreadDone.unread,
+      lastActivityAt: unreadDone.lastAct,
+    });
+    return;
+  }
+
+  const picked = activeRow || waitingRow || errorRow || candidates[0];
+  const st = picked.status;
+  const title = picked.title;
+  const lastAct = picked.lastAct;
   const ageMs = Date.now() - Number(lastAct || 0);
   const low = String(st).toLowerCase();
   let status = 'idle';
   let summary = `WorkBuddy：${st} — ${(title || '').slice(0, 60)}`;
-  if (['failed', 'error', 'terminated'].includes(low)) {
-    status = 'error';
+  if (['running', 'working', 'active', 'in_progress', 'busy'].includes(low)) {
+    status = 'running'; summary = `WorkBuddy：工作中 — ${(title || '').slice(0, 50)}`;
+  } else if (['waiting', 'blocked', 'needs_input', 'pending'].includes(low)) {
+    status = 'needs_input'; summary = `WorkBuddy：等操作 — ${(title || '').slice(0, 50)}`;
+  } else if (['failed', 'error', 'terminated'].includes(low)) {
+    status = 'error'; summary = `WorkBuddy：出错 — ${(title || '').slice(0, 50)}`;
   } else if (['completed'].includes(low)) {
-    status = ageMs < 120_000 ? 'done' : 'idle';
-    if (ageMs >= 120_000) summary = `WorkBuddy：空闲（上次：${(title || '').slice(0, 50)})`;
+    // 没有 unread 的 completed：只是"上次做完了"，不算待办。
+    status = 'idle';
+    summary = `WorkBuddy：空闲（上次：${(title || '').slice(0, 50)})`;
   } else if (['archived'].includes(low)) {
     status = 'idle';
     summary = `WorkBuddy：空闲（上次归档：${(title || '').slice(0, 50)})`;
-  } else if (['running', 'working', 'active', 'in_progress', 'busy'].includes(low)) {
-    status = 'running';
-  } else if (['waiting', 'blocked', 'needs_input', 'pending'].includes(low)) {
-    status = 'needs_input';
   }
   if (!appUp) {
     writeSnapshot(id, 'offline', 'WorkBuddy：下线', vendor, {
@@ -606,21 +681,23 @@ function readLogTail(logPath, maxBytes = 200_000) {
   }
 }
 
+/**
+ * 本机时区偏移，形如 "+08:00"。用于把日志里的墙上时间解析成正确时刻。
+ * 不能写死 +08:00：换台机器就错，而且错的是整整一个时区差。
+ */
+function localOffsetSuffix() {
+  const offMin = -new Date().getTimezoneOffset(); // 东为正
+  const sign = offMin >= 0 ? '+' : '-';
+  const abs = Math.abs(offMin);
+  return `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+}
+
+/**
+ * 唯一的解析实现放在 scripts/lib/logTime.mjs（与 src/adapters/logTime.ts 同源）。
+ * 这里保留一个薄封装，避免调用点改名。
+ */
 function parseIsoAgeMs(isoOrLocal) {
-  if (!isoOrLocal) return null;
-  // 2026-10-20T08:24:47.556Z or 2026-10-20T16:05:10.506+08:00 or 2026-10-20 16:26:24
-  let s = String(isoOrLocal).trim();
-  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
-    s = s.replace(' ', 'T');
-  }
-  // Bare local wall clock → Asia/Shanghai; bare ISO-T (Marvis approvals) → UTC.
-  if (!/[zZ]|[+-]\d{2}:\d{2}$/.test(s)) {
-    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) s += 'Z';
-    else s += '+08:00';
-  }
-  const t = Date.parse(s);
-  if (Number.isNaN(t)) return null;
-  return Date.now() - t;
+  return parseLogAgeMs(isoOrLocal);
 }
 
 /**
@@ -789,131 +866,103 @@ function marvisWorkspaceHot(userRoot, windowMs = 45_000) {
 
 function pollAutoClaw() {
   const id = 'autoclaw-1';
-  const health =
-    httpJson('http://127.0.0.1:8766/health') || httpJson('http://127.0.0.1:18789/health');
-  const bindingsPath = join(
-    homedir(),
-    'Library/Application Support/autoclaw/im/agent-identity-bindings.json',
-  );
-  const bindings = readJson(bindingsPath);
-  const list = bindings?.bindings || [];
-  const statuses = list.map((b) => String(b.status || '').toLowerCase());
-  const appUp = appMainRunning(APP_MAINS['autoclaw-1']);
-  const ocRoot = join(homedir(), '.openclaw-autoclaw');
-  const agentsRoot = join(ocRoot, 'agents');
-  const gatewayLog = join(ocRoot, 'logs', 'gateway.log');
-  const dbPath = join(ocRoot, 'state', 'openclaw.sqlite');
-
-  // Presence = main app binary. Gateway HTTP alone must not keep seat "idle online".
+  const appUp = appMainRunning([
+    'AutoClaw2.app/Contents/MacOS/AutoClaw',
+    'AutoClaw.app/Contents/MacOS/AutoClaw',
+  ]);
   if (!appUp) {
     writeSnapshot(id, 'offline', 'AutoClaw：下线', 'autoclaw');
     return;
   }
-  if (
-    health &&
-    (health.ok === false ||
-      (health.status && health.status !== 'live' && health.status !== 'ok'))
-  ) {
-    writeSnapshot(id, 'error', 'AutoClaw：网关异常', 'autoclaw', { health });
-    return;
-  }
-  if (statuses.some((s) => ['error', 'failed'].includes(s))) {
-    writeSnapshot(id, 'error', 'AutoClaw：坐席绑定异常', 'autoclaw');
-    return;
-  }
-  if (statuses.some((s) => s === 'offline') && !appUp) {
-    writeSnapshot(id, 'offline', 'AutoClaw：下线', 'autoclaw');
-    return;
-  }
 
-  // Live work signals (bindings stay "ready" while connected — do not treat as idle-only)
-  const hasLock = anySessionLock(agentsRoot);
-  const sessionAge = newestMatchingAgeMs(
-    agentsRoot,
-    (name) =>
-      (name.endsWith('.jsonl') || name.endsWith('.trajectory.jsonl')) &&
-      !name.endsWith('.lock'),
+  // AutoClaw 2.0：所有状态都在 runtime.sqlite 里
+  const accountsRoot = join(
+    homedir(),
+    'Library/Application Support/AutoClaw-official/accounts',
   );
-  const devLog = join(ocRoot, 'logs', 'autoclaw-dev.log');
-  // Open-turn maxAge is a search window; alone/corroborated caps decide running.
-  const openTurn = autoclawOpenChatTurn(devLog, 15 * 60_000);
-  const processing = gatewayProcessingRecent(gatewayLog, 90_000);
-  const traceHot = gatewayTraceRecent(gatewayLog, 45_000);
-  const activeTask = openclawActiveTasks(dbPath);
-  // Session jsonl mtime alone is weak (final persist keeps it hot) — keep short.
-  const SESSION_HOT_MS = 75_000;
-
-  if (hasLock) {
-    writeSnapshot(id, 'running', 'AutoClaw：工作中（会话锁）', 'autoclaw', {
-      signal: 'jsonl.lock',
-      sessionAgeMs: sessionAge,
-    });
-    return;
-  }
-  if (activeTask) {
-    writeSnapshot(id, 'running', `AutoClaw：工作中（任务 ${activeTask}）`, 'autoclaw', {
-      signal: 'task_runs',
-    });
-    return;
-  }
-  if (processing) {
-    writeSnapshot(
-      id,
-      'running',
-      `AutoClaw：工作中（网关 processing，进度 ${processing.progressAgeSec}s 前）`,
-      'autoclaw',
-      { signal: 'gateway.processing', ...processing },
+  let dbPath = null;
+  try {
+    const accounts = readdirSync(accountsRoot).filter(
+      (d) => !d.startsWith('.'),
     );
+    for (const acct of accounts) {
+      const p = join(accountsRoot, acct, 'runtime', 'runtime.sqlite');
+      if (existsSync(p)) { dbPath = p; break; }
+    }
+  } catch { /* ignore */ }
+
+  if (!dbPath) {
+    writeSnapshot(id, 'idle', 'AutoClaw：应用在线（无数据库）', 'autoclaw');
     return;
   }
-  // Enqueued-without-terminal is common; alone only ~90s. Corroborate with lock/processing
-  // (not bare session mtime — persist after success would false-positive).
-  if (openTurn) {
-    const alone = openTurn.ageMs < 90_000;
-    const corroborated =
-      openTurn.ageMs < 10 * 60_000 && (processing || hasLock);
-    if (alone || corroborated) {
-      writeSnapshot(
-        id,
-        'running',
-        `AutoClaw：工作中（对话回合 ${Math.round(openTurn.ageMs / 1000)}s）`,
-        'autoclaw',
-        { signal: openTurn.event, turnId: openTurn.turnId, ageMs: openTurn.ageMs },
-      );
+
+  // 有 run 在跑 → 工作中
+  const running = sqlite(
+    dbPath,
+    "SELECT count(*) FROM work_runs WHERE status='running';",
+  );
+  if (running && Number(running) > 0) {
+    writeSnapshot(id, 'running', `AutoClaw：工作中（${running} 个任务在跑）`, 'autoclaw', {
+      signal: 'work_runs.running',
+      count: Number(running),
+    });
+    return;
+  }
+
+  // 等你审批 → needs_input
+  const waiting = sqlite(
+    dbPath,
+    "SELECT count(*) FROM work_runs WHERE status='waiting_approval';",
+  );
+  if (waiting && Number(waiting) > 0) {
+    writeSnapshot(id, 'needs_input', `AutoClaw：等审批（${waiting} 个待办）`, 'autoclaw', {
+      signal: 'work_runs.waiting_approval',
+      count: Number(waiting),
+    });
+    return;
+  }
+
+  // 最近一次会话完成 → done（短窗口）
+  const latestRun = sqlite(
+    dbPath,
+    "SELECT status || '|' || COALESCE(text,'') || '|' || updated_at FROM work_runs ORDER BY updated_at DESC LIMIT 1;",
+  );
+  if (latestRun) {
+    const [st, title, updated] = latestRun.split('|');
+    const age = Date.now() - Date.parse(updated);
+    if (st === 'completed' && age < 120_000) {
+      writeSnapshot(id, 'done', `AutoClaw：完成待审 — ${(title || '').slice(0, 50)}`, 'autoclaw', {
+        signal: 'work_runs.completed',
+        status: st,
+      });
+      return;
+    }
+    if (['failed', 'interrupted'].includes(st) && age < 120_000) {
+      writeSnapshot(id, 'error', `AutoClaw：出错 — ${(title || '').slice(0, 50)}`, 'autoclaw', {
+        signal: 'work_runs.failed',
+        status: st,
+      });
       return;
     }
   }
-  if (sessionAge != null && sessionAge < SESSION_HOT_MS) {
-    writeSnapshot(
-      id,
-      'running',
-      `AutoClaw：工作中（会话 ${Math.round(sessionAge / 1000)}s 前有写入）`,
-      'autoclaw',
-      { signal: 'session.jsonl', sessionAgeMs: sessionAge },
-    );
-    return;
-  }
-  if (traceHot) {
-    writeSnapshot(id, 'running', 'AutoClaw：工作中（网关请求痕迹）', 'autoclaw', {
-      signal: 'AutoClawRequestTrace',
-    });
-    return;
-  }
-  if (statuses.some((s) => ['busy', 'running', 'working', 'active'].includes(s))) {
-    writeSnapshot(id, 'running', 'AutoClaw：工作中', 'autoclaw');
-    return;
-  }
-  if (statuses.some((s) => ['waiting', 'blocked', 'needs_auth', 'needs_input'].includes(s))) {
-    writeSnapshot(id, 'needs_input', 'AutoClaw：等操作', 'autoclaw');
-    return;
-  }
-  const ready = statuses.filter((s) => s === 'ready' || s === 'idle').length;
+
+  // 最近有没有活动（sessions / traces mtime）
+  const sessionsRoot = join(
+    homedir(),
+    'Library/Application Support/AutoClaw-official/accounts',
+  );
+  const sessAge = newestMatchingAgeMs(
+    sessionsRoot,
+    (name, p) => p.includes('/runtime/traces/') && name.endsWith('.jsonl'),
+    5,
+  );
+  const recentWork = sessAge != null && sessAge < 60_000;
   writeSnapshot(
     id,
     'idle',
-    `AutoClaw：空闲（网关在线，${ready || list.length} 个坐席就绪）`,
+    recentWork ? 'AutoClaw：空闲（刚有活动）' : 'AutoClaw：空闲',
     'autoclaw',
-    { agents: list.map((b) => ({ id: b.agentId, status: b.status })) },
+    { signal: 'idle', sessionAgeMs: sessAge },
   );
 }
 
@@ -1173,29 +1222,34 @@ function pollDsh() {
     const secs = Math.round((age != null ? age : lockAge) / 1000);
     writeSnapshot(id, 'running', `DSH：工作中（会话 ${secs}s 前有活动）`, 'dsh', {
       signal: 'session.mtime',
+      confidence: 'weak',
+      reason: '仅凭会话文件 mtime —— 弱证据',
       forceVersion: DSH_STREAM_OPENTURN_FORCE,
       ageMs: age,
       lockAgeMs: lockAge,
     });
     return;
   }
-  // App up + warm session (or recent closed turn) but no open turn → awaiting user, not idle.
+  // 有写入、没 open turn：不算"在等你"。
+  // DSH 没有实时"等人输入"的信号可用，45 分钟内动过 ≠ 在等人 —— 用户离开你 11 分钟、
+  // 就已经不属于"占用注意力"了。旧实现把它一直顶在 needs_input，是假阳性主力。
+  // 现在：45 分钟内完成过 -> done（弱证据），之后 -> idle。
   const closedAge =
     scanned?.lastClosedTurnMs != null && Number.isFinite(scanned.lastClosedTurnMs)
       ? Date.now() - scanned.lastClosedTurnMs
       : null;
-  const warm =
-    (age != null && age < 45 * 60_000) ||
-    (closedAge != null && closedAge < 45 * 60_000);
-  if (warm) {
-    writeSnapshot(id, 'needs_input', 'DSH：等操作（会话待继续）', 'dsh', {
-      signal: 'await-user',
+  const recentlyClosed = (closedAge != null && closedAge < 120_000);
+  if (recentlyClosed) {
+    writeSnapshot(id, 'done', 'DSH：完成待审（回合刚关闭）', 'dsh', {
+      signal: 'turn/closed-recent',
+      confidence: 'weak',
+      reason: '最近 2 分钟有回合关闭 —— 待你查看结果',
       forceVersion: DSH_STREAM_OPENTURN_FORCE,
-      ageMs: age,
       closedAgeMs: closedAge,
     });
     return;
   }
+  // 超过 2 分钟没动 → 空闲。不写 needs_input。
   if (age != null) {
     writeSnapshot(id, 'idle', 'DSH：空闲（应用在线）', 'dsh', {
       signal: 'idle',
@@ -1263,6 +1317,8 @@ function pollMarvis() {
       'marvs',
       {
         signal: streamingHot ? 'main.log.streaming' : 'main.log.state',
+        confidence: 'weak',
+        reason: '来自 main.log 的时间戳推断 —— 弱证据',
         state: act.state,
         streamingAgeMs: act.streamingAgeMs,
         stateAgeMs: act.stateAgeMs,
@@ -1278,7 +1334,7 @@ function pollMarvis() {
       'running',
       `Marvis：工作中（工作区 ${Math.round(hot / 1000)}s 前有写入）`,
       'marvs',
-      { signal: 'workspace.hot', ageMs: hot },
+      { signal: 'workspace.hot', ageMs: hot, confidence: 'weak', reason: '仅凭工作区文件 mtime —— 弱证据' },
     );
     return;
   }
@@ -1315,7 +1371,6 @@ function grokDesktopAppAlive() {
   }
 }
 
-/** Optional: GROK_CODER_AGENT_ID; else match name "Coder". */
 const GROK_CODER_ID = process.env.GROK_CODER_AGENT_ID || '';
 const GROK_OFFICIAL_FORCE = 'grok-official-listagents-v2';
 
@@ -1352,13 +1407,19 @@ function httpJsonPost(url, token, bodyObj, timeoutMs = 2000) {
         'Accept: application/json',
         '-H',
         'Content-Type: application/json',
+        // Do not put the token in argv (visible via ps). curl reads the header
+        // from stdin, which also keeps it out of shell history / process listings.
         '-H',
-        `Authorization: Bearer ${token}`,
+        '@-',
         '-d',
         JSON.stringify(bodyObj ?? {}),
         url,
       ],
-      { encoding: 'utf8', timeout: timeoutMs + 800 },
+      {
+        encoding: 'utf8',
+        timeout: timeoutMs + 800,
+        input: `Authorization: Bearer ${token}\n`,
+      },
     );
     if (r.status !== 0 || !r.stdout) return null;
     const t = r.stdout.trim();
@@ -1434,7 +1495,7 @@ function pollGrokBotFromGateway() {
       forceVersion: GROK_OFFICIAL_FORCE,
       via: gw.via,
       coder: {
-        id: mapped.coder?.id ?? null,
+        id: mapped.coder?.id ?? GROK_CODER_ID,
         isRunningTurn: !!mapped.coder?.isRunningTurn,
         isRunning: !!mapped.coder?.isRunning,
         isComposingMessage: !!mapped.coder?.isComposingMessage,
@@ -1444,67 +1505,147 @@ function pollGrokBotFromGateway() {
   };
 }
 
+/**
+ * forceVersion grok-desktop-local-v1
+ * Grok Bot seat read LOCALLY from Grok Bot.app persistence (no cloud drop).
+ * online = desktop-status.json pid alive (or main binary) AND dune-reliability heartbeat < 3m.
+ * Roster blob (*.roster.last-roster): needs_input if awaitingUserResponse != null;
+ * running if lastActivityAt < 90s; else idle. Never reads secrets files; never logs previews.
+ */
+const GROK_LOCAL_FORCE = 'grok-desktop-local-v2';
+const GROK_APP_DIR = join(homedir(), 'Library/Application Support/Grok Bot');
+const GROK_RUNNING_WINDOW_MS = 90_000;
+const GROK_HEARTBEAT_MAX_MS = 180_000;
+let grokLastGood = null;
+
+function b32DecodeName(s) {
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0, val = 0; const out = [];
+  for (const ch of s.toUpperCase()) {
+    const i = alpha.indexOf(ch); if (i < 0) return null;
+    val = (val << 5) | i; bits += 5;
+    if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; }
+  }
+  return Buffer.from(out).toString('utf8');
+}
+
+function grokHeartbeatAgeMs() {
+  const dir = join(GROK_APP_DIR, 'dune-reliability', 'sessions');
+  let best = null;
+  try {
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.running.json')) continue;
+      const j = readJson(join(dir, f));
+      const hb = Number(j?.heartbeatAtMs);
+      if (!hb) continue;
+      if (j?.pid) { try { process.kill(Number(j.pid), 0); } catch { continue; } }
+      const age = Date.now() - hb;
+      if (best == null || age < best) best = age;
+    }
+  } catch { return null; }
+  return best;
+}
+
+function grokReadRoster() {
+  const dir = join(GROK_APP_DIR, 'sand-client-persistence');
+  try {
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.blob')) continue;
+      const key = b32DecodeName(f.slice(0, -5));
+      if (!key || !key.endsWith('.roster.last-roster')) continue;
+      const j = JSON.parse(readFileSync(join(dir, f), 'utf8'));
+      const rows = j?.value?.rows;
+      return Array.isArray(rows) ? rows : null;
+    }
+  } catch { return null; }
+  return null;
+}
+
+function grokReplyWaiting(r) {
+  if (!r?.hasUnread) return false;
+  const mid = String(r.lastMessageId || r.newestEntryId || '');
+  // turn ids: t<N>u = user message, t<N>s<M> = agent output
+  return /s\d+$/.test(mid) || (!!mid && !/u$/.test(mid));
+}
+
+function grokCloudDrop() {
+  const p = join(homedir(), '.agent-stage', 'status', 'grok-bot.json');
+  const d = readJson(p);
+  if (!d || d.schemaVersion !== 1) return null;
+  if (!/sand-listAgents/i.test(String(d?.meta?.source || ''))) return null;
+  const t = Date.parse(d.observedAt || '');
+  if (!t) return null;
+  const age = Date.now() - t;
+  if (age < -60_000 || age > 390_000) return { stale: true, ageMs: age };
+  return { stale: false, ageMs: age, status: String(d.status), running: d.meta?.runningAgents || [], awaiting: d.meta?.awaitingAgents || [] };
+}
+
 function pollGrokBot() {
   const id = 'grok-bot-1';
+  // Prefer the official listAgents gateway when ops configured it. This path
+  // was previously dead code, so a valid gateway was silently ignored.
+  const official = pollGrokBotFromGateway();
+  if (official) {
+    writeSnapshot(id, official.status, official.summary, 'grok-bot', official.meta);
+    return;
+  }
   const hay = psOut();
   const up = appMainRunning(APP_MAINS['grok-bot-1'], hay);
   const desk = grokDesktopAppAlive();
-  const online = up || desk === true;
-
-  // Path A: direct listAgents when ops gateway is configured and reachable.
-  if (online) {
-    const live = pollGrokBotFromGateway();
-    if (live) {
-      writeSnapshot(id, live.status, live.summary, 'grok-bot', live.meta);
-      return;
-    }
-  }
-
-  // Path B (interim): official listAgents drop. TTL 6.5m aligns with @every 5m push routine.
-  const hbPath = join(homedir(), '.agent-stage', 'status', 'grok-bot.json');
-  const drop = readJson(hbPath);
-  const dropAge = (() => {
-    const m = mtimeAgeMs(hbPath);
-    const o = observedAgeMs(drop);
-    if (m == null) return o;
-    if (o == null) return m;
-    return Math.min(m, o);
-  })();
-  const src = String(drop?.meta?.source || drop?.source || '');
-  const isOfficialListAgents = /sand-listAgents/i.test(src);
-  const dropTtlMs = isOfficialListAgents ? 390_000 : 90_000;
-  const autoDrop =
-    drop?.schemaVersion === 1 &&
-    drop?.status &&
-    dropAge != null &&
-    dropAge < dropTtlMs &&
-    src &&
-    !/coder-heartbeat|manual|assistant/i.test(src) &&
-    /grok|sand|desktop|app/i.test(src);
-
-  if (online && autoDrop) {
-    const st = String(drop.status);
-    const zh = grokStatusZh(st, drop.summary);
-    writeSnapshot(id, st, zh, 'grok-bot', {
-      ...(drop.meta || {}),
-      heartbeatAgeMs: dropAge,
-      mirroredFrom: 'grok-bot.json',
-      // Keep host-gateway when official exporter wrote it; else mark drop mirror.
-      signal: drop?.meta?.signal === 'host-gateway' ? 'host-gateway' : 'app-status-drop',
-      forceVersion: drop?.meta?.forceVersion || GROK_OFFICIAL_FORCE,
-    });
+  const hbAge = grokHeartbeatAgeMs();
+  const online = (desk === true || up) && hbAge != null && hbAge < GROK_HEARTBEAT_MAX_MS;
+  const base = { source: 'grok-desktop-local', forceVersion: GROK_LOCAL_FORCE, heartbeatAgeMs: hbAge };
+  if (!online) {
+    writeSnapshot(id, 'offline', 'Grok Bot：下线', 'grok-bot', { ...base, signal: 'offline', desktopStatusAlive: desk, appMain: up });
     return;
   }
+  let rows = grokReadRoster();
+  let rosterSignal = 'roster.last-roster';
+  if (rows) grokLastGood = { rows, at: Date.now() };
+  else if (grokLastGood && Date.now() - grokLastGood.at < 10 * 60_000) {
+    rows = grokLastGood.rows;
+    rosterSignal = 'roster.last-good';
+  } else {
+    grokLastGood = null;
+    rows = [];
+    rosterSignal = 'roster-unavailable';
+  }
+  const nm = (r) => r?.name || r?.id;
+  const awaitingLocal = rows.filter((r) => r?.awaitingUserResponse != null);
+  const doneRows = rows.filter((r) => !r?.isGroup && grokReplyWaiting(r));
+  const cloud = grokCloudDrop();
+  const cloudFresh = cloud && !cloud.stale;
 
-  writeSnapshot(
-    id,
-    online ? 'idle' : 'offline',
-    online
-      ? 'Grok Bot：空闲（应用在线；细忙碌待官方状态信号）'
-      : 'Grok Bot：下线',
-    'grok-bot',
-    { signal: online ? 'app-main' : 'offline', desktopStatusAlive: desk },
-  );
+  let status = 'idle', names = [];
+  let confidence = 'certain';
+  let reason = '';
+  if (awaitingLocal.length || (cloudFresh && cloud.status === 'needs_input')) {
+    status = 'needs_input';
+    names = [...new Set([...awaitingLocal.map(nm), ...(cloudFresh ? cloud.awaiting : [])])];
+    reason = awaitingLocal.length ? '本地 roster awaitingUserResponse 非空' : '云端 drop needs_input';
+  } else if (cloudFresh && cloud.status === 'running') {
+    status = 'running'; names = cloud.running;
+    reason = '云端 drop running（listAgents）';
+  } else if (doneRows.length) {
+    status = 'done'; names = doneRows.map(nm);
+    // "有未读的助手消息"≠"完成待审"：它只是常态的未读，不能当强证据。
+    // 之前它一直把 Grok 顶在 attention 上（配合旧状态机还会每 2 秒闪一次）。
+    confidence = 'weak';
+    reason = '本地 roster 有未读助手回复 —— 只是未读，不等于完成待审';
+  }
+  const usedCloud = cloudFresh && (status === 'running' || (status === 'needs_input' && !awaitingLocal.length));
+  const summary = grokStatusZh(status) + (names.length ? `（${names.join('、')}）` : '');
+  writeSnapshot(id, status, summary, 'grok-bot', {
+    ...base,
+    source: usedCloud ? 'grok-desktop-local+sand-listAgents' : 'grok-desktop-local',
+    signal: rosterSignal,
+    confidence,
+    reason: reason || undefined,
+    agents: names,
+    cloudDrop: cloud ? { stale: cloud.stale, ageMs: cloud.ageMs, status: cloud.status ?? null } : null,
+    awaitingLocal: awaitingLocal.map((r) => ({ name: nm(r), awaitingUserResponse: r.awaitingUserResponse })),
+    replyWaiting: doneRows.map(nm),
+  });
 }
 
 function codeBuddySessionBusy() {
@@ -1653,6 +1794,8 @@ function pollCodeBuddy(hay) {
   if (logSt && !['none', 'idle', 'stop', 'stopped'].includes(logSt.agentState)) {
     writeSnapshot(id, 'running', `CodeBuddy：工作中（agentState=${logSt.agentState}）`, 'codebuddy', {
       signal: 'coding-copilot.log',
+      confidence: 'weak',
+      reason: '日志尾部 agentState 推断 —— 弱证据',
       ...logSt,
     });
     return;
@@ -1824,7 +1967,7 @@ function pollClaudeCode(hay) {
       'running',
       `Claude Code：工作中（转录 ${Math.round(hot / 1000)}s 前有写入）`,
       'claude-code',
-      { signal: 'projects.jsonl', ageMs: hot },
+      { signal: 'projects.jsonl', ageMs: hot, confidence: 'weak', reason: '仅凭转录文件 mtime —— 弱证据' },
     );
     return;
   }
@@ -1838,11 +1981,10 @@ function pollClaudeCode(hay) {
   );
 }
 
-function codexNewestRollout() {
+function codexRecentRollouts(maxAgeMs = 12 * 60 * 60_000, limit = 12) {
   const root = join(homedir(), '.codex', 'sessions');
-  if (!existsSync(root)) return null;
-  let newest = null;
-  let newestMs = 0;
+  if (!existsSync(root)) return [];
+  const found = [];
   const walk = (dir, depth) => {
     if (depth > 6) return;
     let ents = [];
@@ -1856,9 +1998,9 @@ function codexNewestRollout() {
       try {
         const st = statSync(p);
         if (st.isDirectory()) walk(p, depth + 1);
-        else if (e.startsWith('rollout-') && e.endsWith('.jsonl') && st.mtimeMs > newestMs) {
-          newestMs = st.mtimeMs;
-          newest = p;
+        else if (e.startsWith('rollout-') && e.endsWith('.jsonl')) {
+          const ageMs = Date.now() - st.mtimeMs;
+          if (ageMs <= maxAgeMs) found.push({ path: p, ageMs, mtimeMs: st.mtimeMs });
         }
       } catch {
         /* skip */
@@ -1866,67 +2008,315 @@ function codexNewestRollout() {
     }
   };
   walk(root, 0);
-  return newest ? { path: newest, ageMs: Date.now() - newestMs } : null;
+  found.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return found.slice(0, limit);
 }
 
-/** Official rollout events: task_started without later task_complete for that turn_id. */
-function codexOpenTask(rolloutPath, maxFileAgeMs = 30 * 60_000) {
-  if (!rolloutPath || !existsSync(rolloutPath)) return null;
-  const age = mtimeAgeMs(rolloutPath);
-  if (age == null || age > maxFileAgeMs) return null;
-  let text = '';
+function readRolloutTail(rolloutPath, maxBytes = 2_000_000) {
   try {
-    // Tail last ~400KB via Read of full file if small; else spawn tail.
     const st = statSync(rolloutPath);
-    if (st.size <= 500_000) text = readFileSync(rolloutPath, 'utf8');
-    else {
-      const r = spawnSync('tail', ['-c', '400000', rolloutPath], {
-        encoding: 'utf8',
-        maxBuffer: 500_000,
-        timeout: 2000,
-      });
-      text = r.stdout || '';
+    if (st.size <= maxBytes) return readFileSync(rolloutPath, 'utf8');
+    const r = spawnSync('tail', ['-c', String(maxBytes), rolloutPath], {
+      encoding: 'utf8',
+      maxBuffer: maxBytes + 10_000,
+      timeout: 2000,
+    });
+    return r.stdout || '';
+  } catch {
+    return null;
+  }
+}
+
+function readRolloutFrom(rolloutPath, offset, maxBytes = 2_000_000) {
+  try {
+    const st = statSync(rolloutPath);
+    const floor = Number.isFinite(offset) && offset >= 0 && offset < st.size
+      ? Math.max(0, Math.floor(offset) - 1024)
+      : 0;
+    // A single turn can exceed maxBytes. We need the *end* of the turn (where
+    // approvals are pending), not its beginning.
+    const start = Math.max(floor, st.size - maxBytes);
+    const length = Math.min(maxBytes, st.size - start);
+    if (length <= 0) return '';
+    const buf = Buffer.alloc(length);
+    const fd = openSync(rolloutPath, 'r');
+    try {
+      const read = readSync(fd, buf, 0, length, start);
+      return buf.subarray(0, read).toString('utf8');
+    } finally {
+      closeSync(fd);
     }
   } catch {
     return null;
   }
-  const open = new Map(); // turn_id -> ts
-  let needsInput = null;
-  for (const line of text.split('\n')) {
-    if (!line.trim()) continue;
-    let j;
-    try {
-      j = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const payload = j.payload || j;
-    const ptype = payload.type || j.type;
-    const turnId = payload.turn_id || payload.root_turn_id;
-    const ts = j.timestamp ? Date.parse(j.timestamp) : NaN;
-    if (ptype === 'task_started' && turnId) {
-      open.set(turnId, Number.isNaN(ts) ? Date.now() : ts);
-    } else if (ptype === 'task_complete' && turnId) {
-      open.delete(turnId);
-    } else if (
-      /permission|approval|elicitation|needs_input|waiting_for_user/i.test(String(ptype)) ||
-      payload?.approval_status === 'pending'
-    ) {
-      needsInput = { type: ptype, turnId, ageMs: Number.isNaN(ts) ? age : Date.now() - ts };
+}
+
+/**
+ * Parsing a multi-MB rollout every 2s would burn CPU for nothing. Cache by
+ * (size, mtime, offset); while a turn waits for approval the file is quiet, so
+ * we reuse the previous parse until Codex appends something.
+ */
+const codexRolloutCache = new Map();
+
+function codexAnalyzeRollout(rolloutPath, offset, now) {
+  let st;
+  try {
+    st = statSync(rolloutPath);
+  } catch {
+    return null;
+  }
+  const sig = `${st.size}|${Math.floor(st.mtimeMs)}|${offset ?? ''}`;
+  let entry = codexRolloutCache.get(rolloutPath);
+  if (!entry || entry.sig !== sig) {
+    const text =
+      offset != null
+        ? readRolloutFrom(rolloutPath, offset, 50_000_000)
+        : readRolloutTail(rolloutPath, 50_000_000);
+    if (!text) return null;
+    entry = { sig, parsed: analyzeCodexRollout(text, { now }) };
+    codexRolloutCache.set(rolloutPath, entry);
+    if (codexRolloutCache.size > 32) {
+      const oldest = codexRolloutCache.keys().next().value;
+      if (oldest) codexRolloutCache.delete(oldest);
     }
   }
-  if (needsInput && needsInput.ageMs != null && needsInput.ageMs < 10 * 60_000) {
-    return { kind: 'needs_input', ...needsInput, fileAgeMs: age };
-  }
-  if (open.size === 0) return null;
-  const turnId = [...open.keys()].pop();
-  const start = open.get(turnId);
+  // Recompute ages from the cached timestamps; otherwise a cached "waiting
+  // 3s" would stay 3s forever after the file goes quiet.
   return {
-    kind: 'running',
-    turnId,
-    ageMs: start ? Date.now() - start : age,
-    fileAgeMs: age,
+    pending: entry.parsed.pending.map((call) => ({
+      ...call,
+      ageMs: Math.max(0, now - call.ts),
+    })),
+    openTurns: entry.parsed.openTurns.map((turn) => ({
+      ...turn,
+      ageMs: Math.max(0, now - turn.startedAt),
+    })),
   };
+}
+
+function newestCodexDb(prefix) {
+  const root = join(homedir(), '.codex');
+  if (!existsSync(root)) return null;
+  let newest = null;
+  let newestMs = 0;
+  try {
+    for (const e of readdirSync(root)) {
+      if (!e.startsWith(prefix) || !e.endsWith('.sqlite')) continue;
+      const p = join(root, e);
+      try {
+        const mtime = statSync(p).mtimeMs;
+        if (mtime > newestMs) {
+          newestMs = mtime;
+          newest = p;
+        }
+      } catch {
+        /* skip */
+      }
+    }
+  } catch {
+    return null;
+  }
+  return newest;
+}
+
+function safeSqlCallId(callId) {
+  return String(callId || '').replace(/[^A-Za-z0-9_-]/g, '');
+}
+
+function rolloutThreadId(rolloutPath) {
+  const m = String(rolloutPath).match(
+    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i,
+  );
+  return m ? m[1] : null;
+}
+
+/**
+ * Authoritative "this Codex turn is still running" from Codex's own history DB,
+ * plus the byte offset where the turn starts. Falls back to null when the DB is
+ * unavailable so callers can use rollout inspection.
+ */
+function codexInProgressTurns() {
+  const db = newestCodexDb('thread_history_');
+  if (!db) return null;
+  const out = sqlite(
+    db,
+    "SELECT thread_id || '|' || turn_id || '|' || COALESCE(rollout_byte_offset,'') || '|' || COALESCE(started_at,'') FROM thread_turns WHERE status='inProgress' ORDER BY started_at DESC;",
+  );
+  if (out === null) return null;
+  const rows = out
+    .split('\n')
+    .map((line) => line.split('|'))
+    .filter((parts) => parts.length >= 4 && parts[0] && parts[1])
+    .map(([threadId, turnId, offset, startedAt]) => ({
+      threadId,
+      turnId,
+      rolloutByteOffset: offset === '' ? null : Number(offset),
+      startedAt: startedAt === '' ? null : Number(startedAt) * 1000,
+    }));
+  // Resolve the rollout path from Codex's own thread index. The filename scan
+  // below is time/limit based, so a prompt left waiting for >12h (or a busy
+  // machine with many newer sessions) would otherwise be invisible even
+  // though Codex still has the turn inProgress.
+  const paths = codexThreadRolloutPaths(rows.map((row) => row.threadId));
+  return rows.map((row) => ({ ...row, rolloutPath: paths.get(row.threadId) || null }));
+}
+
+/** `threads.rollout_path` is the authoritative session → file mapping. */
+function codexThreadRolloutPaths(threadIds) {
+  const out = new Map();
+  const ids = [...new Set(threadIds)]
+    .map((id) => String(id || ''))
+    .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  if (ids.length === 0) return out;
+  const db = newestCodexDb('state_');
+  if (!db) return out;
+  const list = ids.map((id) => `'${id}'`).join(',');
+  const rows = sqlite(
+    db,
+    `SELECT id || '|' || rollout_path FROM threads WHERE id IN (${list});`,
+  );
+  if (!rows) return out;
+  const sessionsRoot = join(homedir(), '.codex', 'sessions') + '/';
+  for (const line of rows.split('\n')) {
+    const [id, path] = line.split('|');
+    // Never follow an arbitrary path from a possibly-corrupted DB.
+    if (id && path && path.startsWith(sessionsRoot) && path.endsWith('.jsonl')) {
+      out.set(id, path);
+    }
+  }
+  return out;
+}
+
+function codexTurnRollout(rollouts, threadId, knownPath = null) {
+  const byId = rollouts.find((r) => rolloutThreadId(r.path) === threadId);
+  if (byId) return byId;
+  if (!knownPath) return null;
+  try {
+    const st = statSync(knownPath);
+    return { path: knownPath, ageMs: Date.now() - st.mtimeMs, mtimeMs: st.mtimeMs };
+  } catch {
+    return null;
+  }
+}
+
+/** Codex logged the user's approve/reject decision for this call. */
+function codexApprovalDecided(callId, sinceMs) {
+  const id = safeSqlCallId(callId);
+  if (!id) return false;
+  const db = newestCodexDb('logs_');
+  if (!db) return false;
+  // Logs may rotate; only look back far enough to cover this specific wait.
+  const since = Math.max(0, Math.floor((sinceMs - 5_000) / 1000));
+  const out = sqlite(
+    db,
+    `SELECT count(*) FROM logs WHERE ts >= ${since} AND feedback_log_body LIKE '%operation="exec_approval"%' AND feedback_log_body LIKE '%id: "${id}"%';`,
+  );
+  return out !== null && Number(out) > 0;
+}
+
+/** Codex actually started/finished this call (auto-approved rule or approval done). */
+function codexCallStarted(callId) {
+  const id = safeSqlCallId(callId);
+  if (!id) return false;
+  const db = newestCodexDb('thread_history_');
+  if (!db) return false;
+  const out = sqlite(
+    db,
+    `SELECT count(*) FROM thread_items WHERE item_id = '${id}' AND (started_at_ms IS NOT NULL OR completed_at_ms IS NOT NULL);`,
+  );
+  return out !== null && Number(out) > 0;
+}
+
+/**
+ * Any unresolved escalated tool call across recent Codex threads.
+ * `task_complete` and a matching output clear it; a logged approval decision
+ * or a recorded command start clears it too, so long approved commands are
+ * not reported as "waiting for you".
+ */
+function codexPendingHumanInput(rollouts) {
+  const now = Date.now();
+  const inProgress = codexInProgressTurns();
+  const candidates = [];
+  const seen = new Set();
+  const addCandidate = (rollout, turn = null) => {
+    if (!rollout?.path || seen.has(rollout.path)) return;
+    seen.add(rollout.path);
+    candidates.push({ rollout, turn });
+  };
+  if (inProgress && inProgress.length > 0) {
+    for (const turn of inProgress) {
+      const rollout = codexTurnRollout(rollouts, turn.threadId, turn.rolloutPath);
+      if (!rollout) continue;
+      addCandidate(rollout, turn);
+    }
+  }
+  // Always also inspect recent rollouts: the history DB can lag a new turn by
+  // a few seconds, and the whole point is that a prompt must not be missed in
+  // that window. Files already covered by an inProgress turn are skipped.
+  const recent = rollouts.slice(0, inProgress === null ? 12 : 8);
+  for (const rollout of recent) addCandidate(rollout, null);
+
+  const waiting = [];
+  for (const { rollout, turn } of candidates) {
+    const parsed = codexAnalyzeRollout(rollout.path, turn?.rolloutByteOffset ?? null, now);
+    if (!parsed) continue;
+    for (const call of parsed.pending) {
+      // A call from an older turn is not this turn's approval prompt.
+      if (call.turnId && turn?.turnId && call.turnId !== turn.turnId) continue;
+      if (call.kind === 'approval') {
+        // Only command approvals are cleared by "Codex started it". A question
+        // stays unanswered until its own output/turn completion arrives.
+        if (codexApprovalDecided(call.callId, call.ts)) continue;
+        if (codexCallStarted(call.callId)) continue;
+      }
+      waiting.push({ ...call, rolloutPath: rollout.path, fileAgeMs: rollout.ageMs });
+    }
+  }
+  // Oldest first: if two Codex windows are waiting, report the one that has
+  // been ignored longest instead of whichever file happened to be scanned first.
+  waiting.sort((a, b) => a.ts - b.ts);
+  return waiting[0] || null;
+}
+
+function codexNewestOpenTurn(rollouts) {
+  const now = Date.now();
+  const inProgress = codexInProgressTurns();
+  if (inProgress && inProgress.length > 0) {
+    // A stale inProgress row can survive a hard kill. Skip dead rows and pick
+    // the newest turn whose *own* rollout is still being written; an unrelated
+    // fresh session must not keep a dead turn looking alive either.
+    for (const turn of inProgress) {
+      const rollout = codexTurnRollout(rollouts, turn.threadId, turn.rolloutPath);
+      if (!rollout || rollout.ageMs >= 30 * 60_000) continue;
+      return {
+        turnId: turn.turnId,
+        startedAt: turn.startedAt ?? now,
+        ageMs: turn.startedAt ? Math.max(0, now - turn.startedAt) : 0,
+        fileAgeMs: rollout.ageMs,
+        rolloutPath: rollout.path,
+      };
+    }
+  }
+  let best = null;
+  for (const rollout of rollouts) {
+    // A turn without task_complete can be a killed session. Do not let an old
+    // rollout pin "running" forever; a live turn keeps writing its file.
+    if (rollout.ageMs >= 30 * 60_000) continue;
+    const parsed = codexAnalyzeRollout(rollout.path, null, now);
+    if (!parsed) continue;
+    const { openTurns } = parsed;
+    const turn = openTurns[0];
+    if (turn && (!best || turn.startedAt > best.startedAt)) {
+      best = {
+        turnId: turn.turnId,
+        startedAt: turn.startedAt,
+        ageMs: Math.max(0, now - turn.startedAt),
+        fileAgeMs: rollout.ageMs,
+        rolloutPath: rollout.path,
+      };
+    }
+  }
+  return best;
 }
 
 function pollCodex(hay) {
@@ -1937,16 +2327,23 @@ function pollCodex(hay) {
     return;
   }
 
-  const rollout = codexNewestRollout();
-  const open = rollout ? codexOpenTask(rollout.path) : null;
-  if (open?.kind === 'needs_input') {
-    writeSnapshot(id, 'needs_input', 'Codex：等操作（权限/审批）', 'codex', {
-      signal: 'rollout.permission',
-      ...open,
+  const rollouts = codexRecentRollouts();
+  const rollout = rollouts[0] || null;
+  const waiting = codexPendingHumanInput(rollouts);
+  if (waiting) {
+    const what = waiting.kind === 'question' ? '回答' : '审批';
+    writeSnapshot(id, 'needs_input', `Codex：等你${what}（已等 ${Math.round(waiting.ageMs / 1000)}s）`, 'codex', {
+      signal: `rollout.pending_${waiting.kind}`,
+      callId: waiting.callId,
+      tool: waiting.name,
+      turnId: waiting.turnId,
+      ageMs: waiting.ageMs,
+      fileAgeMs: waiting.fileAgeMs,
     });
     return;
   }
-  if (open?.kind === 'running') {
+  const open = codexNewestOpenTurn(rollouts);
+  if (open) {
     writeSnapshot(
       id,
       'running',
@@ -1962,6 +2359,8 @@ function pollCodex(hay) {
   if (age != null && age < 60_000) {
     writeSnapshot(id, 'running', `Codex：工作中（${Math.round(age / 1000)}s 前有活动）`, 'codex', {
       signal: 'session.mtime',
+      confidence: 'weak',
+      reason: '仅凭会话目录 mtime —— 弱证据',
       ageMs: age,
     });
     return;
@@ -2150,6 +2549,8 @@ function pollDoubao(hay) {
   if (infra && !infra.weak) {
     writeSnapshot(id, 'running', '豆包：工作中（agent_infra 活跃）', 'doubao', {
       signal: 'agent_infra',
+      confidence: 'weak',
+      reason: 'agent_infra 日志 active_task_count —— 弱证据',
       ...infra,
     });
     return;
@@ -2163,16 +2564,25 @@ function pollDoubao(hay) {
 
 function tick() {
   const hay = psOut();
-  pollWorkBuddy();
-  pollCodeBuddy(hay);
-  pollHermes();
-  pollDsh();
-  pollGrokBot();
-  pollMarvis();
-  pollAutoClaw();
-  pollDoubao(hay);
-  pollClaudeCode(hay);
-  pollCodex(hay);
+  const polls = [
+    ['workbuddy-1', () => pollWorkBuddy()],
+    ['codebuddy-1', () => pollCodeBuddy(hay)],
+    ['hermes-1', () => pollHermes()],
+    ['dsh-1', () => pollDsh()],
+    ['grok-bot-1', () => pollGrokBot()],
+    ['marvs-1', () => pollMarvis()],
+    ['autoclaw-1', () => pollAutoClaw()],
+    ['doubao-1', () => pollDoubao(hay)],
+    ['claude-code-1', () => pollClaudeCode(hay)],
+    ['codex-1', () => pollCodex(hay)],
+  ];
+  for (const [id, poll] of polls) {
+    try {
+      poll();
+    } catch (e) {
+      console.error(`[${new Date().toISOString()}] ${id} poll failed: ${e?.stack || e}`);
+    }
+  }
 }
 
 tick();

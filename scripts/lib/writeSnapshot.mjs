@@ -22,6 +22,7 @@ export function writeSnapshot(partial) {
     status: partial.status || 'idle',
     summary: partial.summary,
     observedAt: partial.observedAt || new Date().toISOString(),
+    checkedAt: partial.checkedAt || new Date().toISOString(),
     vendor: partial.vendor,
     sessionId: partial.sessionId,
     meta: partial.meta,

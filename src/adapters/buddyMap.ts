@@ -71,9 +71,10 @@ export function mapBuddyJobToStatus(job: BuddyJobLike): {
       summary: `${name}: idle`,
     };
   }
+  // 未知枚举不能默认 running：那会把“看不懂”伪装成“在忙”，并可能占注意力。
   return {
-    status: 'running',
-    summary: `${name}: ${state || live || 'unknown'}`,
+    status: 'idle',
+    summary: `${name}: unknown state (${state || live || 'unknown'})`,
   };
 }
 

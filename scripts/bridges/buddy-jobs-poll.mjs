@@ -36,9 +36,7 @@ const baseUrl = (
 const token =
   process.env[
     vendor === 'codebuddy' ? 'CODEBUDDY_TOKEN' : 'WORKBUDDY_TOKEN'
-  ] ||
-  arg('token', '') ||
-  '';
+  ] || '';
 
 function mapJob(job) {
   const state = String(job.state ?? '').toLowerCase();

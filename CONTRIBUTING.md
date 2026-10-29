@@ -61,7 +61,8 @@ pnpm tauri:dev
 ## 检查与提交
 
 ```bash
-pnpm typecheck && pnpm smoke
+pnpm typecheck && pnpm test && pnpm smoke
+# or: pnpm verify
 # 改了 poller 逻辑时，对照 docs/signals.md 是否仍准确
 ```
 

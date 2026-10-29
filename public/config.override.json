@@ -1,5 +1,5 @@
 {
-  "forceVersion": "oss-roster-v1",
+  "forceVersion": "oss-stage-motion-v1",
   "displayProfileId": "ipad4-landscape",
   "windowWidth": 2048,
   "windowHeight": 1536,
@@ -8,10 +8,11 @@
     "color": "#0f1419"
   },
   "seatSide": "right",
-  "visibleSeats": 12,
+  "visibleSeats": 10,
   "seatCardWidth": 130,
   "seatStripHeight": 300,
-  "escalationTimeoutMs": 120000,
+  "escalationTimeoutMs": 60000,
+  "seStageChancePercent": 0,
   "agents": [
     {
       "id": "workbuddy-1",
@@ -552,6 +553,5 @@
       "stagePortraitPath": "/characters/codex/stage.png"
     }
   ],
-  "customStatuses": [],
-  "minStageDwellMs": 120000
+  "customStatuses": []
 }
