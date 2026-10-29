@@ -21,6 +21,13 @@
 - 主舞台 + 坐席条（bottom / left / right 真改布局；默认右栏坐席、流体舞台）
 - 可配置角色立绘（六态 + offline）与座位顺序
 - **舞台 / 坐席动效**：`stage-motion.webm` 上台循环；坐席 idle 用 `portrait-motion.webm`；可选 `se.stage-motion.webm`（设置里概率，默认 0）
+
+  正常版舞台动效示例（循环 GIF）：
+
+  | Claude Code 正常版舞台动效 | Hermes 正常版舞台动效 |
+  |:---:|:---:|
+  | ![Claude Code 正常版舞台动效](docs/screenshots/claude-code-stage-motion.gif) | ![Hermes 正常版舞台动效](docs/screenshots/hermes-stage-motion.gif) |
+
 - 统一状态快照协议 v1（`FileStatusAdapter` / `statusUrl`；轮询源写 `checkedAt` 心跳）
 - macOS 直播轮询：`pnpm bridge:live`（写入 `~/.agent-stage/status/` 并镜像到 `public/status/`）
 - 设置持久化：浏览器 `localStorage`，Tauri `app_data_dir/config.json`

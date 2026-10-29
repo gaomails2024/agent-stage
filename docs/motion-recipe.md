@@ -68,4 +68,4 @@ KF1 = `public/characters/workbuddy/stage.png` (white bg, 853x1280). KF2 = `wb-st
    - Deploy as `public/characters/workbuddy/stage-motion.webm` (copy from `shots/wb-stage-motion.webm`).
    - `PortraitStillOrMotion` / `motionCandidateFor`: seat unchanged (`portrait.png` → `portrait-motion.webm`); **stage** now also resolves `stage.png` → `stage-motion.webm` when present (missing file → video onError → still). Offline skips motion.
    - Playback: one play per trigger (no `loop`), hide video on `ended` so the still underneath shows exact KF1 white-bg; random first delay 0.3–5s; then `randomIdleGapMs()` (1.2–5s) before next play — same rhythm as seats.
-   - Other characters: no `stage-motion.webm` yet → stage stays static still.
+   - All roster characters ship `stage-motion.webm` (normal) + optional `se.stage-motion.webm`; missing file → video onError → still.
